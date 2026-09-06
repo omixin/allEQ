@@ -175,7 +175,7 @@ class MainActivity : ComponentActivity() {
                         prefs.edit().putInt("custom_accent_color", color.toArgb()).apply()
                     },
                     onOpenGitHubIssues = {
-                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/omixfun/allEQ/issues"))
+                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/omixin/allEQ/issues"))
                         startActivity(intent)
                     },
                     onDismissTutorial = {

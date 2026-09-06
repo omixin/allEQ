@@ -20,6 +20,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.unit.sp
 import com.omix.alleq.model.EqualizerDefaults
 import com.omix.alleq.ui.theme.LocalEqColors
@@ -82,12 +83,27 @@ fun WaveformEqualizerCard(
 
             Spacer(modifier = Modifier.height(14.dp))
 
+            var canvasWidth by remember { mutableFloatStateOf(0f) }
+            var canvasHeight by remember { mutableFloatStateOf(0f) }
+            var activeDraggingBand by remember { mutableIntStateOf(-1) }
+            var localBandGains by remember { mutableStateOf(bandGains) }
+
+            val currentOnBandGainChanged by rememberUpdatedState(onBandGainChanged)
+
+            LaunchedEffect(bandGains) {
+                if (activeDraggingBand == -1) {
+                    localBandGains = bandGains
+                }
+            }
+
+            val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 EqualizerDefaults.BANDS.forEach { band ->
-                    val gain = bandGains.getOrElse(band.index) { 0f }
+                    val gain = localBandGains.getOrElse(band.index) { 0f }
                     Text(
                         text = "${if (gain > 0) "+" else ""}${gain.toInt()}",
                         fontFamily = com.omix.alleq.ui.theme.WixFontFamily,
@@ -103,17 +119,15 @@ fun WaveformEqualizerCard(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            var canvasWidth by remember { mutableFloatStateOf(0f) }
-            var canvasHeight by remember { mutableFloatStateOf(0f) }
-            var activeDraggingBand by remember { mutableIntStateOf(-1) }
-
-            val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
-
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(190.dp)
-                    .pointerInput(bandGains) {
+                    .onSizeChanged { size ->
+                        canvasWidth = size.width.toFloat()
+                        canvasHeight = size.height.toFloat()
+                    }
+                    .pointerInput(Unit) {
                         awaitEachGesture {
                             val down = awaitFirstDown(requireUnconsumed = false)
                             if (canvasWidth <= 0 || canvasHeight <= 0) return@awaitEachGesture
@@ -123,12 +137,14 @@ fun WaveformEqualizerCard(
                             val padding = 20f
                             val usableHeight = canvasHeight - padding * 2
 
-                            val hitRadiusPx = 28.dp.toPx()
+                            val hitRadiusPx = 44.dp.toPx()
                             var targetBand = -1
                             var minDistanceSq = Float.MAX_VALUE
 
+                            val snapshotGains = localBandGains
+
                             for (i in 0 until bandCount) {
-                                val gain = bandGains.getOrElse(i) { 0f }.coerceIn(-15f, 15f)
+                                val gain = snapshotGains.getOrElse(i) { 0f }.coerceIn(-15f, 15f)
                                 val normalized = (gain + 15f) / 30f
                                 val ptX = i * colWidth + colWidth / 2
                                 val ptY = padding + (1f - normalized) * usableHeight
@@ -157,7 +173,7 @@ fun WaveformEqualizerCard(
                                 return (normalized * 30f - 15f).coerceIn(-15f, 15f)
                             }
 
-                            var lastIntGain = bandGains.getOrElse(activeBand) { 0f }.toInt()
+                            var lastIntGain = snapshotGains.getOrElse(activeBand) { 0f }.toInt()
                             fun applyGain(y: Float) {
                                 val newGain = calculateGain(y)
                                 val currentInt = kotlin.math.round(newGain).toInt()
@@ -165,7 +181,10 @@ fun WaveformEqualizerCard(
                                     haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove)
                                     lastIntGain = currentInt
                                 }
-                                onBandGainChanged(activeBand, newGain)
+                                localBandGains = localBandGains.toMutableList().also {
+                                    if (activeBand in it.indices) it[activeBand] = newGain
+                                }
+                                currentOnBandGainChanged(activeBand, newGain)
                             }
 
                             applyGain(down.position.y)
@@ -176,8 +195,8 @@ fun WaveformEqualizerCard(
                                     val pointer = event.changes.firstOrNull { it.id == down.id } ?: break
                                     if (!pointer.pressed) break
 
-                                    applyGain(pointer.position.y)
                                     pointer.consume()
+                                    applyGain(pointer.position.y)
                                 }
                             } finally {
                                 activeDraggingBand = -1
@@ -199,7 +218,7 @@ fun WaveformEqualizerCard(
                     val guideColor = if (colors.isDark) Color(0xFF222222) else Color(0xFFE5E7EB)
 
                     for (i in 0 until bandCount) {
-                        val gain = bandGains.getOrElse(i) { 0f }.coerceIn(-15f, 15f)
+                        val gain = localBandGains.getOrElse(i) { 0f }.coerceIn(-15f, 15f)
                         val normalized = (gain + 15f) / 30f // 0 .. 1
                         val x = i * colWidth + colWidth / 2
                         val y = padding + (1f - normalized) * usableHeight
@@ -248,18 +267,18 @@ fun WaveformEqualizerCard(
                             if (isDraggingThis) {
                                 drawCircle(
                                     color = curveLineColor.copy(alpha = 0.35f),
-                                    radius = 13.dp.toPx(),
+                                    radius = 16.dp.toPx(),
                                     center = pt
                                 )
                             }
                             drawCircle(
                                 color = colors.background,
-                                radius = if (isDraggingThis) 8.dp.toPx() else 7.dp.toPx(),
+                                radius = if (isDraggingThis) 9.dp.toPx() else 7.dp.toPx(),
                                 center = pt
                             )
                             drawCircle(
                                 color = curveLineColor,
-                                radius = if (isDraggingThis) 6.dp.toPx() else 5.dp.toPx(),
+                                radius = if (isDraggingThis) 7.dp.toPx() else 5.dp.toPx(),
                                 center = pt
                             )
                         }
