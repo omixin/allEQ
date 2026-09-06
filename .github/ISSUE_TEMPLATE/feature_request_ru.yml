@@ -1,0 +1,28 @@
+﻿name: Предложение фичи (Русский)
+description: Предложить идею или улучшение для allEQ
+title: "[Фича]: "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: feature-description
+    attributes:
+      label: Описание идеи
+      description: Опишите функцию или улучшение, которое вы хотите видеть в allEQ.
+      placeholder: Добавить автоматическое переключение пресета при подключении определенного Bluetooth-устройства...
+    validations:
+      required: true
+  - type: textarea
+    id: use-case
+    attributes:
+      label: Проблема / Сценарий использования
+      description: Какую задачу это решает и почему это будет полезно пользователям?
+      placeholder: При переключении между наушниками и AUX в машине приходится каждый раз вручную менять пресет...
+    validations:
+      required: false
+  - type: textarea
+    id: alternative-solutions
+    attributes:
+      label: Рассмотренные альтернативы
+      description: Рассматривали ли вы другие способы решения этой задачи?
+    validations:
+      required: false

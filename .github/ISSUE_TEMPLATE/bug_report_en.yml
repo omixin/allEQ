@@ -1,0 +1,86 @@
+﻿name: Bug Report (English)
+description: Report an issue or unexpected behavior in allEQ
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please provide technical details to help diagnose and resolve the issue.
+  - type: textarea
+    id: problem-description
+    attributes:
+      label: Problem Description
+      description: Describe what happened and what you expected to happen instead.
+      placeholder: Equalizer changes stop affecting playback after song switch...
+    validations:
+      required: true
+  - type: textarea
+    id: steps-to-reproduce
+    attributes:
+      label: Steps to Reproduce
+      description: Exact steps to reproduce the behavior.
+      placeholder: |
+        1. Connect Bluetooth headphones
+        2. Open music player and start playback
+        3. Switch preset in allEQ
+    validations:
+      required: true
+  - type: dropdown
+    id: audio-output
+    attributes:
+      label: Audio Output
+      options:
+        - Bluetooth (TWS / Headphones)
+        - Wired 3.5mm / Type-C DAC
+        - Device Speaker
+        - USB Audio
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: audio-app
+    attributes:
+      label: Music Player / Audio Source
+      description: Which application is producing audio?
+      placeholder: Spotify, YouTube Music, Yandex Music, Poweramp, etc.
+    validations:
+      required: false
+  - type: dropdown
+    id: rom-type
+    attributes:
+      label: ROM / Vendor
+      options:
+        - Vivo (OriginOS / FuntouchOS)
+        - Xiaomi (HyperOS / MIUI)
+        - Samsung (OneUI)
+        - Google Pixel / Clean AOSP
+        - OnePlus / Oppo / Realme (ColorOS / OxygenOS)
+        - Transsion (Tecno / Infinix / HiOS)
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics-log
+    attributes:
+      label: allEQ Diagnostic Report
+      description: Copy from allEQ Settings -> SYSTEM DIAGNOSTICS & LOGS and paste here.
+      placeholder: |
+        === allEQ DIAGNOSTIC REPORT ===
+        App Version: 1.0 (1)
+        Device: V2314A (Vivo)
+        Android: 14 (API 34)
+        Shizuku: Running (Granted)
+        ...
+      render: shell
+    validations:
+      required: true
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Checklist
+      options:
+        - label: Shizuku service is running and permission is granted
+          required: true
+        - label: Background battery optimization is set to "Unrestricted"
+          required: false

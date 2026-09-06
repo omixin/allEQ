@@ -1,0 +1,77 @@
+﻿<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Track 1 -->
+    <path
+        android:pathData="M29.40,37.80 L35.40,34.20 L35.40,70.20 L29.40,73.80 Z"
+        android:fillColor="#38FFFFFF" />
+    <path
+        android:pathData="M32.40,37.50 L32.40,70.50"
+        android:strokeWidth="1.2"
+        android:strokeColor="#70FFFFFF"
+        android:strokeLineCap="round" />
+    <!-- Fader 1 -->
+    <path
+        android:pathData="M28.00,51.00 L36.80,45.80 L36.80,50.20 L28.00,55.40 Z"
+        android:fillColor="#FFFFFF" />
+
+    <!-- Track 2 -->
+    <path
+        android:pathData="M40.20,29.80 L46.20,26.20 L46.20,78.20 L40.20,81.80 Z"
+        android:fillColor="#38FFFFFF" />
+    <path
+        android:pathData="M43.20,29.50 L43.20,78.50"
+        android:strokeWidth="1.2"
+        android:strokeColor="#70FFFFFF"
+        android:strokeLineCap="round" />
+    <!-- Fader 2 -->
+    <path
+        android:pathData="M38.80,59.20 L47.60,54.00 L47.60,58.40 L38.80,63.60 Z"
+        android:fillColor="#FFFFFF" />
+
+    <!-- Track 3 (Center Peak) -->
+    <path
+        android:pathData="M51.00,22.80 L57.00,19.20 L57.00,85.20 L51.00,88.80 Z"
+        android:fillColor="#38FFFFFF" />
+    <path
+        android:pathData="M54.00,22.50 L54.00,85.50"
+        android:strokeWidth="1.2"
+        android:strokeColor="#70FFFFFF"
+        android:strokeLineCap="round" />
+    <!-- Fader 3 -->
+    <path
+        android:pathData="M49.60,34.00 L58.40,28.80 L58.40,33.20 L49.60,38.40 Z"
+        android:fillColor="#FFFFFF" />
+
+    <!-- Track 4 -->
+    <path
+        android:pathData="M61.80,30.80 L67.80,27.20 L67.80,77.20 L61.80,80.80 Z"
+        android:fillColor="#38FFFFFF" />
+    <path
+        android:pathData="M64.80,30.50 L64.80,77.50"
+        android:strokeWidth="1.2"
+        android:strokeColor="#70FFFFFF"
+        android:strokeLineCap="round" />
+    <!-- Fader 4 -->
+    <path
+        android:pathData="M60.40,53.50 L69.20,48.30 L69.20,52.70 L60.40,57.90 Z"
+        android:fillColor="#FFFFFF" />
+
+    <!-- Track 5 -->
+    <path
+        android:pathData="M72.60,38.80 L78.60,35.20 L78.60,69.20 L72.60,72.80 Z"
+        android:fillColor="#38FFFFFF" />
+    <path
+        android:pathData="M75.60,38.50 L75.60,69.50"
+        android:strokeWidth="1.2"
+        android:strokeColor="#70FFFFFF"
+        android:strokeLineCap="round" />
+    <!-- Fader 5 -->
+    <path
+        android:pathData="M71.20,59.50 L80.00,54.30 L80.00,58.70 L71.20,63.90 Z"
+        android:fillColor="#FFFFFF" />
+
+</vector>

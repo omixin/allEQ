@@ -1,0 +1,86 @@
+﻿name: Отчет об ошибке (Русский)
+description: Сообщить об ошибке или сбое в работе allEQ
+title: "[Баг]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Пожалуйста, укажите технические детали для быстрой локализации проблемы.
+  - type: textarea
+    id: problem-description
+    attributes:
+      label: Описание проблемы
+      description: Что произошло и как приложение должно было сработать.
+      placeholder: Изменения полос эквалайзера перестают влиять на звук после смены трека...
+    validations:
+      required: true
+  - type: textarea
+    id: steps-to-reproduce
+    attributes:
+      label: Шаги для воспроизведения
+      description: Последовательность действий, приводящая к ошибке.
+      placeholder: |
+        1. Подключить Bluetooth-наушники
+        2. Запустить воспроизведение в плеере
+        3. Переключить пресет в allEQ
+    validations:
+      required: true
+  - type: dropdown
+    id: audio-output
+    attributes:
+      label: Аудио-выход
+      options:
+        - Bluetooth (TWS / наушники)
+        - Проводные 3.5мм / Type-C ЦАП
+        - Динамик смартфона
+        - USB Audio
+        - Другое
+    validations:
+      required: true
+  - type: input
+    id: audio-app
+    attributes:
+      label: Музыкальный плеер / Источник звука
+      description: Какое приложение воспроизводит звук?
+      placeholder: Яндекс Музыка, Spotify, VK Музыка, YouTube Music, Poweramp и т.д.
+    validations:
+      required: false
+  - type: dropdown
+    id: rom-type
+    attributes:
+      label: Оболочка / Прошивка
+      options:
+        - Vivo (OriginOS / FuntouchOS)
+        - Xiaomi (HyperOS / MIUI)
+        - Samsung (OneUI)
+        - Google Pixel / Чистый AOSP
+        - OnePlus / Oppo / Realme (ColorOS / OxygenOS)
+        - Transsion (Tecno / Infinix / HiOS)
+        - Другая
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics-log
+    attributes:
+      label: Диагностический отчет allEQ
+      description: Скопируйте в allEQ Настройки -> СИСТЕМНАЯ ДИАГНОСТИКА И ЛОГИ и вставьте сюда.
+      placeholder: |
+        === allEQ DIAGNOSTIC REPORT ===
+        App Version: 1.0 (1)
+        Device: V2314A (Vivo)
+        Android: 14 (API 34)
+        Shizuku: Running (Granted)
+        ...
+      render: shell
+    validations:
+      required: true
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Предварительная проверка
+      options:
+        - label: Служба Shizuku запущена и разрешение предоставлено
+          required: true
+        - label: Фоновая оптимизация батареи отключена (режим без ограничений)
+          required: false

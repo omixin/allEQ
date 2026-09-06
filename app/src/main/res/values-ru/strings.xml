@@ -1,0 +1,148 @@
+<resources>
+    <string name="app_name">allEQ</string>
+    
+    <!-- Devices -->
+    <string name="device_speaker">встроенные динамики</string>
+    <string name="device_bluetooth">bluetooth аудио</string>
+    <string name="device_wired">проводные наушники</string>
+    <string name="device_usb">usb-c аудио</string>
+    
+    <!-- Top Bar & Main Controls -->
+    <string name="btn_new_preset">новый</string>
+    <string name="hold_to_bypass">удерживайте для a/b сравнения</string>
+    <string name="bypass_active">оригинальный звук (bypass активен)</string>
+    
+    <!-- Preset Status & Modifiers -->
+    <string name="preset_unsaved">не сохранено</string>
+    <string name="preset_active">активен</string>
+    <string name="preset_custom">свой</string>
+    <string name="preset_in_queue">%1$d в очереди</string>
+    
+    <!-- Faders -->
+    <string name="fader_off">выкл</string>
+    <string name="fader_disabled_hint">отключено • тап для вкл</string>
+    <string name="fader_swipe_hint">свайп вверх / вниз</string>
+    <string name="fader_tap_to_adjust">нажмите для настройки</string>
+    
+    <!-- Dynamic Bass -->
+    <string name="dynamic_bass_desc">адаптивный панч и защита динамика от хрипа</string>
+    <string name="dynamic_bass_intensity">интенсивность алгоритма</string>
+    <string name="dynamic_bass_off">выкл</string>
+    <string name="dynamic_bass_atmos_dsp">atmos dsp</string>
+    <string name="dynamic_bass_status_master_off">мастер выключен</string>
+    <string name="dynamic_bass_status_bypass">a/b bypass (чистый звук)</string>
+    <string name="dynamic_bass_status_disabled">отключено</string>
+    <string name="dynamic_bass_status_headphones">наушники (полный диапазон)</string>
+    <string name="dynamic_bass_status_punch">бас-панч (+%1$.1f db, громкость %2$d%%)</string>
+    <string name="dynamic_bass_status_adaptive">адаптивный баланс (%1$d%%)</string>
+    <string name="dynamic_bass_status_protection">защита динамика (срез суббаса %1$.1f db, %2$d%%)</string>
+    
+    <!-- Dialogs -->
+    <string name="dialog_save_preset_title">SAVE PRESET</string>
+    <string name="dialog_preset_name_label">название пресета</string>
+    <string name="dialog_btn_save">сохранить</string>
+    <string name="dialog_btn_cancel">отмена</string>
+    <string name="dialog_delete_preset_title">DELETE PRESET</string>
+    <string name="dialog_delete_preset_confirm">вы уверены, что хотите удалить пресет \"%1$s\"?</string>
+    <string name="dialog_btn_delete">удалить</string>
+    <string name="dialog_unsaved_title">UNSAVED PRESET</string>
+    <string name="dialog_unsaved_message">пресет «%1$s» был изменен. сбросить изменения и переключить на «%2$s»?</string>
+    <string name="dialog_btn_discard_switch">сбросить и переключить</string>
+    <string name="dialog_btn_save_as_new">сохранить как новый</string>
+    
+    <!-- Settings Sheet -->
+    <string name="settings_title">SETTINGS</string>
+    <string name="settings_preset_manager_title">PRESET QUEUE &amp; MANAGER</string>
+    <string name="settings_preset_manager_desc">изменение порядка пресетов, удаление и восстановление удаленных пресетов эквалайзера.</string>
+    <string name="settings_preset_manager_btn">управление пресетами</string>
+    
+    <string name="settings_appearance_title">APPEARANCE &amp; UI SCALE</string>
+    <string name="settings_appearance_desc">масштаб интерфейса и акцентные темы</string>
+    <string name="settings_scale_title">INTERFACE SCALE (DPI)</string>
+    <string name="scale_compact">компактный</string>
+    <string name="scale_standard">стандартный</string>
+    <string name="scale_large">крупный</string>
+    
+    <string name="settings_accent_title">STUDIO ACCENT</string>
+    <string name="accent_green">зеленый</string>
+    <string name="accent_cyan">бирюзовый</string>
+    <string name="accent_orange">оранжевый</string>
+    <string name="accent_purple">фиолетовый</string>
+    <string name="accent_system">системные</string>
+    <string name="accent_custom">свой</string>
+    
+    <string name="settings_bg_protection_title">BACKGROUND PROTECTION</string>
+    <string name="settings_bg_protection_desc">включение автозапуска и снятие ограничений энергосбережения для непрерывной работы звука в фоне.</string>
+    <string name="badge_applied">применено</string>
+    <string name="badge_recommended">рекомендовано</string>
+    <string name="btn_apply_bg_protection">применить защиту фона</string>
+    
+    <string name="settings_shizuku_title">SHIZUKU PRIVILEGES</string>
+    <string name="shizuku_granted_desc">разрешения shizuku активны. защита процессов работает.</string>
+    <string name="shizuku_running_desc">служба shizuku запущена, требуется предоставить доступ.</string>
+    <string name="shizuku_not_running_desc">служба shizuku не обнаружена. запустите приложение shizuku.</string>
+    <string name="badge_active">активен</string>
+    <string name="badge_permission_needed">нужен доступ</string>
+    <string name="badge_offline">офлайн</string>
+    <string name="btn_grant_shizuku">предоставить доступ</string>
+    
+    <string name="settings_tutorial_title">QUICK GUIDE &amp; HELP</string>
+    <string name="settings_tutorial_desc">пошаговая инструкция по настройке shizuku, пресетов и устранению проблем.</string>
+    <string name="badge_guide">инструкция</string>
+    <string name="btn_open_tutorial">открыть инструкцию</string>
+    
+    <string name="settings_github_title">OPEN SOURCE &amp; FEEDBACK</string>
+    <string name="settings_github_desc">проект с открытым исходным кодом. если вы столкнулись с ошибкой или хотите предложить фичу — создайте issue на github.</string>
+    <string name="badge_github">github</string>
+    <string name="btn_report_issue">сообщить об ошибке на github</string>
+    
+    <string name="settings_diag_title">SYSTEM DIAGNOSTICS &amp; LOGS</string>
+    <string name="settings_diag_desc">инженерный отчет о состоянии dsp, сессиях вывода звука и журнал событий для репорта багов.</string>
+    <string name="badge_logs">логи</string>
+    <string name="btn_copy_diag">скопировать технический отчет</string>
+    
+    <string name="footer_subtitle">системный dsp-улучшайзер звука с открытым исходным кодом</string>
+    
+    <!-- Preset Manager Sheet -->
+    <string name="preset_manager_drag_hint">потяните за ☰ для перемещения пресетов в очереди</string>
+    <string name="preset_manager_active_queue">ACTIVE QUEUE</string>
+    <string name="preset_manager_deleted">DELETED PRESETS</string>
+    <string name="btn_restore">вернуть</string>
+    <string name="btn_reset_defaults">сбросить все пресеты к исходным</string>
+    
+    <!-- Tutorial Dialog -->
+    <string name="tutorial_title">allEQ SETUP</string>
+    <string name="tutorial_subtitle">чтобы эквалайзер работал на любых динамиках и не выгружался в фоне системы, выполни простые шаги:</string>
+    <string name="tutorial_step1_title">SHIZUKU SERVICE</string>
+    <string name="tutorial_step1_running">служба shizuku активна и подключена</string>
+    <string name="tutorial_step1_not_running">открой shizuku и запусти службу через беспроводную отладку (wi-fi)</string>
+    <string name="tutorial_step2_title">ACCESS PERMISSIONS</string>
+    <string name="tutorial_step2_granted">доступ к shizuku успешно получен</string>
+    <string name="tutorial_step2_not_granted">предоставь приложению доступ к системным api через shizuku</string>
+    <string name="tutorial_btn_grant">выдать доступ в shizuku</string>
+    <string name="tutorial_step3_title">BACKGROUND PROTECTION</string>
+    <string name="tutorial_step3_applied">белый список энергосбережения и автозапуск активны</string>
+    <string name="tutorial_step3_not_applied">команды shell защитят службу звука от закрытия системой</string>
+    <string name="tutorial_btn_apply">активировать фоновую защиту</string>
+    <string name="tutorial_btn_close">всё понятно, закрыть</string>
+    
+    <!-- Preset Descriptions -->
+    <string name="preset_desc_flat">эталонное плоское звучание без окраса</string>
+    <string name="preset_desc_bass_punch">плотный сфокусированный бас без гула</string>
+    <string name="preset_desc_vocal_clarity">четкая разборчивость речи и вокала</string>
+    <string name="preset_desc_club">энергичный суббас и искрящиеся верха</string>
+    <string name="preset_desc_rock">классический v-образный драйв для гитар</string>
+    <string name="preset_desc_cinematic">широкая объемная сцена для кино и видео</string>
+    <string name="preset_desc_acoustic">теплое натуральное звучание инструментов</string>
+    
+    <!-- Toasts & Notifications -->
+    <string name="toast_protection_activated">Фоновая защита успешно активирована!</string>
+    <string name="toast_report_copied">Инженерный отчет скопирован в буфер!</string>
+    <string name="notif_channel_name">allEQ Звуковой Процессор</string>
+    <string name="notif_channel_desc">Фоновая работа эквалайзера</string>
+    <string name="notif_active_sessions">Активных сессий: %1$d | %2$s</string>
+    <string name="notif_enabled">Включен (%1$s)</string>
+    <string name="notif_disabled">Выключен</string>
+    <string name="notif_action_enable">Включить</string>
+    <string name="notif_action_disable">Отключить</string>
+</resources>

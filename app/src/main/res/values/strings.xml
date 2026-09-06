@@ -1,0 +1,148 @@
+<resources>
+    <string name="app_name">allEQ</string>
+    
+    <!-- Devices -->
+    <string name="device_speaker">built-in speaker</string>
+    <string name="device_bluetooth">bluetooth audio</string>
+    <string name="device_wired">wired headphones</string>
+    <string name="device_usb">usb-c audio</string>
+    
+    <!-- Top Bar & Main Controls -->
+    <string name="btn_new_preset">new</string>
+    <string name="hold_to_bypass">hold for a/b comparison</string>
+    <string name="bypass_active">original audio (bypass active)</string>
+    
+    <!-- Preset Status & Modifiers -->
+    <string name="preset_unsaved">unsaved</string>
+    <string name="preset_active">active</string>
+    <string name="preset_custom">custom</string>
+    <string name="preset_in_queue">%1$d in queue</string>
+    
+    <!-- Faders -->
+    <string name="fader_off">off</string>
+    <string name="fader_disabled_hint">disabled • tap to enable</string>
+    <string name="fader_swipe_hint">swipe up / down</string>
+    <string name="fader_tap_to_adjust">tap to adjust</string>
+    
+    <!-- Dynamic Bass -->
+    <string name="dynamic_bass_desc">adaptive punch &amp; high-volume cone protection</string>
+    <string name="dynamic_bass_intensity">algorithm intensity</string>
+    <string name="dynamic_bass_off">off</string>
+    <string name="dynamic_bass_atmos_dsp">atmos dsp</string>
+    <string name="dynamic_bass_status_master_off">master off</string>
+    <string name="dynamic_bass_status_bypass">a/b bypass (original audio)</string>
+    <string name="dynamic_bass_status_disabled">disabled</string>
+    <string name="dynamic_bass_status_headphones">headphones (full range)</string>
+    <string name="dynamic_bass_status_punch">bass punch (+%1$.1f db, volume %2$d%%)</string>
+    <string name="dynamic_bass_status_adaptive">adaptive balance (%1$d%%)</string>
+    <string name="dynamic_bass_status_protection">speaker protection (cut %1$.1f db, %2$d%%)</string>
+    
+    <!-- Dialogs -->
+    <string name="dialog_save_preset_title">SAVE PRESET</string>
+    <string name="dialog_preset_name_label">preset name</string>
+    <string name="dialog_btn_save">save</string>
+    <string name="dialog_btn_cancel">cancel</string>
+    <string name="dialog_delete_preset_title">DELETE PRESET</string>
+    <string name="dialog_delete_preset_confirm">Are you sure you want to delete preset \"%1$s\"?</string>
+    <string name="dialog_btn_delete">delete</string>
+    <string name="dialog_unsaved_title">UNSAVED PRESET</string>
+    <string name="dialog_unsaved_message">Preset \"%1$s\" was modified. Discard changes and switch to \"%2$s\"?</string>
+    <string name="dialog_btn_discard_switch">discard &amp; switch</string>
+    <string name="dialog_btn_save_as_new">save as new</string>
+    
+    <!-- Settings Sheet -->
+    <string name="settings_title">SETTINGS</string>
+    <string name="settings_preset_manager_title">PRESET QUEUE &amp; MANAGER</string>
+    <string name="settings_preset_manager_desc">reorder, delete and restore removed equalizer presets.</string>
+    <string name="settings_preset_manager_btn">manage presets</string>
+    
+    <string name="settings_appearance_title">APPEARANCE &amp; UI SCALE</string>
+    <string name="settings_appearance_desc">interface scale and accent color themes</string>
+    <string name="settings_scale_title">INTERFACE SCALE (DPI)</string>
+    <string name="scale_compact">compact</string>
+    <string name="scale_standard">standard</string>
+    <string name="scale_large">large</string>
+    
+    <string name="settings_accent_title">STUDIO ACCENT</string>
+    <string name="accent_green">green</string>
+    <string name="accent_cyan">cyan</string>
+    <string name="accent_orange">orange</string>
+    <string name="accent_purple">purple</string>
+    <string name="accent_system">system</string>
+    <string name="accent_custom">custom</string>
+    
+    <string name="settings_bg_protection_title">BACKGROUND PROTECTION</string>
+    <string name="settings_bg_protection_desc">enable autostart and disable battery optimizations for uninterrupted background audio.</string>
+    <string name="badge_applied">applied</string>
+    <string name="badge_recommended">recommended</string>
+    <string name="btn_apply_bg_protection">apply background protection</string>
+    
+    <string name="settings_shizuku_title">SHIZUKU PRIVILEGES</string>
+    <string name="shizuku_granted_desc">shizuku permissions active. process protection enabled.</string>
+    <string name="shizuku_running_desc">shizuku service running, permission grant required.</string>
+    <string name="shizuku_not_running_desc">shizuku service not found. please launch the shizuku app.</string>
+    <string name="badge_active">active</string>
+    <string name="badge_permission_needed">access needed</string>
+    <string name="badge_offline">offline</string>
+    <string name="btn_grant_shizuku">grant access</string>
+    
+    <string name="settings_tutorial_title">QUICK GUIDE &amp; HELP</string>
+    <string name="settings_tutorial_desc">step-by-step guide for shizuku setup, presets and troubleshooting.</string>
+    <string name="badge_guide">guide</string>
+    <string name="btn_open_tutorial">open guide</string>
+    
+    <string name="settings_github_title">OPEN SOURCE &amp; FEEDBACK</string>
+    <string name="settings_github_desc">open-source project. if you encounter a bug or have a feature request, create an issue on github.</string>
+    <string name="badge_github">github</string>
+    <string name="btn_report_issue">report an issue on github</string>
+    
+    <string name="settings_diag_title">SYSTEM DIAGNOSTICS &amp; LOGS</string>
+    <string name="settings_diag_desc">engineering report on dsp state, audio output sessions and event logs for bug reports.</string>
+    <string name="badge_logs">logs</string>
+    <string name="btn_copy_diag">copy diagnostic report</string>
+    
+    <string name="footer_subtitle">open-source rootless system-wide audio dsp engine</string>
+    
+    <!-- Preset Manager Sheet -->
+    <string name="preset_manager_drag_hint">drag ☰ to reorder presets in the queue</string>
+    <string name="preset_manager_active_queue">ACTIVE QUEUE</string>
+    <string name="preset_manager_deleted">DELETED PRESETS</string>
+    <string name="btn_restore">restore</string>
+    <string name="btn_reset_defaults">reset all presets to defaults</string>
+    
+    <!-- Tutorial Dialog -->
+    <string name="tutorial_title">allEQ SETUP</string>
+    <string name="tutorial_subtitle">to ensure the equalizer works across all apps and stays active in the background, follow these simple steps:</string>
+    <string name="tutorial_step1_title">SHIZUKU SERVICE</string>
+    <string name="tutorial_step1_running">shizuku service is running and connected</string>
+    <string name="tutorial_step1_not_running">open shizuku and start the service via wireless debugging (wi-fi)</string>
+    <string name="tutorial_step2_title">ACCESS PERMISSIONS</string>
+    <string name="tutorial_step2_granted">shizuku access successfully granted</string>
+    <string name="tutorial_step2_not_granted">grant the app access to system apis via shizuku</string>
+    <string name="tutorial_btn_grant">grant access in shizuku</string>
+    <string name="tutorial_step3_title">BACKGROUND PROTECTION</string>
+    <string name="tutorial_step3_applied">battery optimization whitelist and autostart are active</string>
+    <string name="tutorial_step3_not_applied">shell commands will protect the audio service from being killed by the system</string>
+    <string name="tutorial_btn_apply">activate background protection</string>
+    <string name="tutorial_btn_close">got it, close</string>
+    
+    <!-- Preset Descriptions -->
+    <string name="preset_desc_flat">reference flat response without coloration</string>
+    <string name="preset_desc_bass_punch">tight focused punch without boominess</string>
+    <string name="preset_desc_vocal_clarity">crystal clear voice and dialogue intelligibility</string>
+    <string name="preset_desc_club">energetic sub-bass and sparkling highs</string>
+    <string name="preset_desc_rock">classic v-curve drive for guitars and drums</string>
+    <string name="preset_desc_cinematic">wide immersive soundstage for movies and videos</string>
+    <string name="preset_desc_acoustic">warm natural timbre of instruments</string>
+    
+    <!-- Toasts & Notifications -->
+    <string name="toast_protection_activated">Background protection activated!</string>
+    <string name="toast_report_copied">Diagnostic report copied to clipboard!</string>
+    <string name="notif_channel_name">allEQ Audio Processor</string>
+    <string name="notif_channel_desc">Background equalizer processing</string>
+    <string name="notif_active_sessions">Active sessions: %1$d | %2$s</string>
+    <string name="notif_enabled">Enabled (%1$s)</string>
+    <string name="notif_disabled">Disabled</string>
+    <string name="notif_action_enable">Enable</string>
+    <string name="notif_action_disable">Disable</string>
+</resources>

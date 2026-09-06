@@ -1,0 +1,28 @@
+﻿name: Feature Request (English)
+description: Suggest an idea or improvement for allEQ
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: feature-description
+    attributes:
+      label: Feature Description
+      description: Describe the feature or improvement you would like to see.
+      placeholder: Add auto-switch preset when connecting specific Bluetooth device...
+    validations:
+      required: true
+  - type: textarea
+    id: use-case
+    attributes:
+      label: Problem / Use Case
+      description: What problem does this solve or how does it improve workflow?
+      placeholder: When switching between car AUX and headphones, I have to manually...
+    validations:
+      required: false
+  - type: textarea
+    id: alternative-solutions
+    attributes:
+      label: Alternatives Considered
+      description: Any alternative solutions or features you considered.
+    validations:
+      required: false
