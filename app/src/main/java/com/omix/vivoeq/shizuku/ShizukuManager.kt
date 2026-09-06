@@ -1,0 +1,105 @@
+package com.omix.vivoeq.shizuku
+
+import android.content.Context
+import android.content.pm.PackageManager
+import rikka.shizuku.Shizuku
+import java.io.BufferedReader
+import java.io.InputStreamReader
+
+object ShizukuManager {
+
+    const val REQUEST_CODE_PERMISSION = 1001
+
+    fun isInstalled(context: Context): Boolean {
+        return try {
+            context.packageManager.getPackageInfo("moe.shizuku.privileged.api", 0)
+            true
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    fun isRunning(): Boolean {
+        return try {
+            Shizuku.pingBinder()
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    fun hasPermission(): Boolean {
+        if (!isRunning()) return false
+        return try {
+            if (Shizuku.isPreV11()) {
+                Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED
+            } else {
+                Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED
+            }
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    fun requestPermission() {
+        if (isRunning() && !hasPermission()) {
+            try {
+                Shizuku.requestPermission(REQUEST_CODE_PERMISSION)
+            } catch (_: Exception) {
+            }
+        }
+    }
+
+    fun runShellCommand(command: String): Result<String> {
+        if (!hasPermission()) {
+            return Result.failure(IllegalStateException("Нет прав Shizuku"))
+        }
+
+        return try {
+            val method = Shizuku::class.java.getDeclaredMethod(
+                "newProcess",
+                Array<String>::class.java,
+                Array<String>::class.java,
+                String::class.java
+            ).apply { isAccessible = true }
+
+            val process = method.invoke(null, arrayOf("sh", "-c", command), null, null) as Process
+            val output = BufferedReader(InputStreamReader(process.inputStream)).use { it.readText() }
+            val error = BufferedReader(InputStreamReader(process.errorStream)).use { it.readText() }
+            val exitCode = process.waitFor()
+
+            if (exitCode == 0) {
+                Result.success(output.trim())
+            } else {
+                Result.failure(RuntimeException("Ошибка shell ($exitCode): $error"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Активирует белый список для защиты приложения от выгрузки в OriginOS и Android.
+     */
+    fun applyOriginOsWhitelist(context: Context): Result<String> {
+        val pkg = context.packageName
+        val script = """
+            cmd deviceidle whitelist +$pkg
+            cmd appops set $pkg RUN_IN_BACKGROUND allow
+            cmd appops set $pkg RUN_ANY_IN_BACKGROUND allow
+            pm grant $pkg android.permission.DUMP
+        """.trimIndent()
+
+        val results = mutableListOf<String>()
+        script.lines().forEach { cmd ->
+            val cleanCmd = cmd.trim()
+            if (cleanCmd.isNotEmpty()) {
+                val res = runShellCommand(cleanCmd)
+                if (res.isFailure) {
+                    return Result.failure(res.exceptionOrNull() ?: Exception("Ошибка выполнения $cleanCmd"))
+                }
+                results.add("$cleanCmd -> OK")
+            }
+        }
+        return Result.success(results.joinToString("\n"))
+    }
+}
