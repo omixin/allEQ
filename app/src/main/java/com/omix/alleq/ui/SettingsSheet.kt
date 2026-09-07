@@ -48,7 +48,8 @@ fun SettingsSheet(
     onOpenPresetManager: () -> Unit,
     onCopyDiagnostics: () -> Unit,
     onOpenTutorial: () -> Unit,
-    onOpenGitHubIssues: () -> Unit = {}
+    onOpenGitHubIssues: () -> Unit = {},
+    onOpenTelegram: () -> Unit = {}
 ) {
     val colors = LocalEqColors.current
 
@@ -459,6 +460,18 @@ fun SettingsSheet(
                 icon = Icons.AutoMirrored.Filled.HelpOutline,
                 buttonText = androidx.compose.ui.res.stringResource(com.omix.alleq.R.string.btn_open_tutorial),
                 onButtonClick = onOpenTutorial
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            SettingsActionCard(
+                title = "TELEGRAM COMMUNITY",
+                subtitle = androidx.compose.ui.res.stringResource(com.omix.alleq.R.string.settings_telegram_desc),
+                statusBadgeText = androidx.compose.ui.res.stringResource(com.omix.alleq.R.string.badge_telegram),
+                statusBadgeColor = Color(0xFF229ED9),
+                icon = Icons.AutoMirrored.Filled.Send,
+                buttonText = androidx.compose.ui.res.stringResource(com.omix.alleq.R.string.btn_join_telegram),
+                onButtonClick = onOpenTelegram
             )
 
             Spacer(modifier = Modifier.height(12.dp))

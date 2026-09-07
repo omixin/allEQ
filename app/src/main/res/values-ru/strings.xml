@@ -91,6 +91,11 @@
     <string name="badge_guide">инструкция</string>
     <string name="btn_open_tutorial">открыть инструкцию</string>
     
+    <string name="settings_telegram_title">TELEGRAM COMMUNITY</string>
+    <string name="settings_telegram_desc">наш официальный telegram-чат для общения, обсуждения звука, обмена пресетами и тестирования бета-версий.</string>
+    <string name="badge_telegram">telegram</string>
+    <string name="btn_join_telegram">войти в telegram-чат</string>
+    
     <string name="settings_github_title">OPEN SOURCE &amp; FEEDBACK</string>
     <string name="settings_github_desc">проект с открытым исходным кодом. если вы столкнулись с ошибкой или хотите предложить фичу — создайте issue на github.</string>
     <string name="badge_github">github</string>

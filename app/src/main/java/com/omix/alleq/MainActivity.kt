@@ -287,6 +287,10 @@ class MainActivity : ComponentActivity() {
                         val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/omixin/allEQ/issues"))
                         startActivity(intent)
                     },
+                    onOpenTelegram = {
+                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://t.me/allEQoff"))
+                        startActivity(intent)
+                    },
                     onDismissTutorial = {
                         prefs.edit().putBoolean("is_first_run", false).apply()
                     },
@@ -400,6 +404,7 @@ fun MainScreen(
     customAccentColor: Color,
     onCustomColorChanged: (Color) -> Unit,
     onOpenGitHubIssues: () -> Unit,
+    onOpenTelegram: () -> Unit = {},
     onDismissTutorial: () -> Unit,
     onRequestShizuku: () -> Unit,
     onApplyWhitelist: () -> Unit,
@@ -547,7 +552,8 @@ fun MainScreen(
                 showSettingsSheet = false
                 showTutorial = true
             },
-            onOpenGitHubIssues = onOpenGitHubIssues
+            onOpenGitHubIssues = onOpenGitHubIssues,
+            onOpenTelegram = onOpenTelegram
         )
     }
 
