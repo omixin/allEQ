@@ -145,4 +145,21 @@
     <string name="notif_disabled">Disabled</string>
     <string name="notif_action_enable">Enable</string>
     <string name="notif_action_disable">Disable</string>
+    <string name="oem_lock_hint">lock allEQ in recent apps (padlock icon) to prevent termination on swipe</string>
+    
+    <!-- Preset Export / Import -->
+    <string name="btn_share_preset">share preset</string>
+    <string name="btn_export_all_presets">export all presets (.alleq)</string>
+    <string name="btn_import_preset_file">import from file (.alleq)</string>
+    <string name="dialog_import_preset_title">IMPORT PRESET</string>
+    <string name="dialog_import_pack_title">IMPORT PRESET PACK</string>
+    <string name="dialog_import_preset_desc">Preset: %1$s\nPre-amp: %2$s dB, Bass Boost: %3$d%%</string>
+    <string name="dialog_import_pack_desc">Found %1$d presets in file:\n%2$s</string>
+    <string name="dialog_btn_import_and_apply">import &amp; apply</string>
+    <string name="dialog_btn_import_save_only">save only</string>
+    <string name="dialog_btn_import_all">import all</string>
+    <string name="toast_preset_imported">Preset \"%1$s\" imported!</string>
+    <string name="toast_preset_pack_imported">%1$d presets imported!</string>
+    <string name="toast_import_failed">Failed to read .alleq preset file</string>
+    <string name="share_preset_chooser_title">Share allEQ Preset</string>
 </resources>

@@ -8,8 +8,12 @@ import android.os.Build
 import android.os.Bundle
 import android.os.IBinder
 import android.widget.Toast
+import java.io.File
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.FileProvider
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Spring
@@ -94,6 +98,8 @@ class MainActivity : ComponentActivity() {
 
     private var shizukuRunning by mutableStateOf(ShizukuManager.isRunning())
     private var shizukuHasPermission by mutableStateOf(ShizukuManager.hasPermission())
+    private var isBatteryOptimizationIgnored by mutableStateOf(false)
+    private var pendingImportPresets by mutableStateOf<List<EqualizerPreset>?>(null)
 
     private val permissionListener = Shizuku.OnRequestPermissionResultListener { _, _ ->
         shizukuHasPermission = ShizukuManager.hasPermission()
@@ -107,14 +113,116 @@ class MainActivity : ComponentActivity() {
         shizukuHasPermission = false
     }
 
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleIncomingIntent(intent)
+    }
+
+    // handle intent with .alleq file payload
+    private fun handleIncomingIntent(intent: Intent?) {
+        if (intent == null) return
+        when (intent.action) {
+            Intent.ACTION_VIEW -> {
+                handleIncomingPresetUri(intent.data)
+            }
+            Intent.ACTION_SEND -> {
+                val uri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)
+                } else {
+                    @Suppress("DEPRECATION")
+                    intent.getParcelableExtra(Intent.EXTRA_STREAM)
+                }
+                handleIncomingPresetUri(uri)
+            }
+        }
+    }
+
+    // read .alleq file contents from uri and parse presets
+    private fun handleIncomingPresetUri(uri: Uri?) {
+        if (uri == null) return
+        try {
+            val content = contentResolver.openInputStream(uri)?.use { stream ->
+                stream.bufferedReader().readText()
+            }
+            val parsed = EqualizerDefaults.parseAlleqPayload(content)
+            if (parsed.isNotEmpty()) {
+                pendingImportPresets = parsed
+            } else {
+                Toast.makeText(this, getString(R.string.toast_import_failed), Toast.LENGTH_SHORT).show()
+            }
+        } catch (_: Exception) {
+            Toast.makeText(this, getString(R.string.toast_import_failed), Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    // share a single preset as a .alleq file
+    private fun sharePreset(preset: EqualizerPreset) {
+        try {
+            val presetsDir = File(cacheDir, "presets").apply { mkdirs() }
+            val sanitized = preset.name.trim().replace("[\\\\/:*?\"<>|\\x00-\\x1F]".toRegex(), "_")
+            val cleanName = sanitized.ifBlank { "preset" }
+            val file = File(presetsDir, "$cleanName.alleq")
+            file.writeText(EqualizerDefaults.presetToAlleqJson(preset))
+
+            val uri = FileProvider.getUriForFile(
+                this,
+                "${packageName}.fileprovider",
+                file
+            )
+
+            val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                type = "application/octet-stream"
+                putExtra(Intent.EXTRA_STREAM, uri)
+                putExtra(Intent.EXTRA_SUBJECT, "allEQ Preset: ${preset.name}")
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            startActivity(Intent.createChooser(shareIntent, getString(R.string.share_preset_chooser_title)))
+        } catch (e: Exception) {
+            Toast.makeText(this, "Failed to share preset: ${e.message}", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    // share all custom presets as a .alleq pack file
+    private fun exportAllPresets(presets: List<EqualizerPreset>) {
+        try {
+            if (presets.isEmpty()) {
+                Toast.makeText(this, "No custom presets to export", Toast.LENGTH_SHORT).show()
+                return
+            }
+            val presetsDir = File(cacheDir, "presets").apply { mkdirs() }
+            val file = File(presetsDir, "allEQ_Presets_Backup.alleq")
+            file.writeText(EqualizerDefaults.presetPackToAlleqJson(presets))
+
+            val uri = FileProvider.getUriForFile(
+                this,
+                "${packageName}.fileprovider",
+                file
+            )
+
+            val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                type = "application/octet-stream"
+                putExtra(Intent.EXTRA_STREAM, uri)
+                putExtra(Intent.EXTRA_SUBJECT, "allEQ Presets Backup")
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            startActivity(Intent.createChooser(shareIntent, getString(R.string.share_preset_chooser_title)))
+        } catch (e: Exception) {
+            Toast.makeText(this, "Failed to export presets: ${e.message}", Toast.LENGTH_SHORT).show()
+        }
+    }
+
     override fun onResume() {
         super.onResume()
         shizukuRunning = ShizukuManager.isRunning()
         shizukuHasPermission = ShizukuManager.hasPermission()
+        isBatteryOptimizationIgnored = ShizukuManager.isBatteryOptimizationIgnored(this)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        isBatteryOptimizationIgnored = ShizukuManager.isBatteryOptimizationIgnored(this)
+        handleIncomingIntent(intent)
 
         val serviceIntent = Intent(this, AudioProcessorService::class.java).apply {
             action = AudioProcessorService.ACTION_START
@@ -159,6 +267,7 @@ class MainActivity : ComponentActivity() {
                     isFirstRunInitial = isFirstRun,
                     shizukuRunning = shizukuRunning,
                     shizukuHasPermission = shizukuHasPermission,
+                    isBatteryOptimizationIgnored = isBatteryOptimizationIgnored,
                     currentUiScale = currentUiScale,
                     onUiScaleChanged = { scale ->
                         currentUiScale = scale
@@ -186,13 +295,28 @@ class MainActivity : ComponentActivity() {
                     },
                     onApplyWhitelist = {
                         lifecycleScope.launch {
-                            val res = withContext(Dispatchers.IO) {
-                                ShizukuManager.applyOriginOsWhitelist(this@MainActivity)
+                            var shizukuSuccess = false
+                            if (ShizukuManager.hasPermission()) {
+                                val res = withContext(Dispatchers.IO) {
+                                    ShizukuManager.applyOriginOsWhitelist(this@MainActivity)
+                                }
+                                shizukuSuccess = res.isSuccess
                             }
-                            if (res.isSuccess) {
+
+                            val isIgnored = ShizukuManager.isBatteryOptimizationIgnored(this@MainActivity)
+                            if (!isIgnored) {
+                                try {
+                                    val intent = Intent(android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                                        data = Uri.parse("package:$packageName")
+                                    }
+                                    startActivity(intent)
+                                } catch (_: Exception) {
+                                    try {
+                                        startActivity(Intent(android.provider.Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
+                                    } catch (_: Exception) {}
+                                }
+                            } else if (shizukuSuccess || isIgnored) {
                                 Toast.makeText(this@MainActivity, getString(R.string.toast_protection_activated), Toast.LENGTH_LONG).show()
-                            } else {
-                                Toast.makeText(this@MainActivity, "Error: ${res.exceptionOrNull()?.message}", Toast.LENGTH_LONG).show()
                             }
                         }
                     },
@@ -223,7 +347,24 @@ class MainActivity : ComponentActivity() {
                         val clip = android.content.ClipData.newPlainText("allEQ Diagnostic Report", report)
                         clipboard.setPrimaryClip(clip)
                         Toast.makeText(this, getString(R.string.toast_report_copied), Toast.LENGTH_LONG).show()
-                    }
+                    },
+                    pendingImportPresets = pendingImportPresets,
+                    onDismissImportDialog = { pendingImportPresets = null },
+                    onImportSinglePreset = { preset, applyNow ->
+                        val ok = service?.importPreset(preset, applyNow) ?: false
+                        if (ok) {
+                            Toast.makeText(this@MainActivity, getString(R.string.toast_preset_imported, preset.name), Toast.LENGTH_SHORT).show()
+                        }
+                    },
+                    onImportPresetsPack = { pack ->
+                        val count = service?.importPresets(pack) ?: 0
+                        if (count > 0) {
+                            Toast.makeText(this@MainActivity, getString(R.string.toast_preset_pack_imported, count), Toast.LENGTH_SHORT).show()
+                        }
+                    },
+                    onSharePreset = { preset -> sharePreset(preset) },
+                    onExportAllPresets = { presets -> exportAllPresets(presets) },
+                    onFilePicked = { uri -> handleIncomingPresetUri(uri) }
                 )
             }
         }
@@ -251,6 +392,7 @@ fun MainScreen(
     isFirstRunInitial: Boolean,
     shizukuRunning: Boolean,
     shizukuHasPermission: Boolean,
+    isBatteryOptimizationIgnored: Boolean = false,
     currentUiScale: UiScale,
     onUiScaleChanged: (UiScale) -> Unit,
     currentAccentTheme: AccentTheme,
@@ -275,8 +417,19 @@ fun MainScreen(
     onBassBoostChanged: (Float) -> Unit,
     onDynamicBassToggle: (Boolean) -> Unit,
     onDynamicBassStrengthChanged: (Float) -> Unit,
-    onCopyDiagnostics: () -> Unit
+    onCopyDiagnostics: () -> Unit,
+    pendingImportPresets: List<EqualizerPreset>? = null,
+    onDismissImportDialog: () -> Unit = {},
+    onImportSinglePreset: (EqualizerPreset, Boolean) -> Unit = { _, _ -> },
+    onImportPresetsPack: (List<EqualizerPreset>) -> Unit = {},
+    onSharePreset: (EqualizerPreset) -> Unit = {},
+    onExportAllPresets: (List<EqualizerPreset>) -> Unit = {},
+    onFilePicked: (Uri?) -> Unit = {}
 ) {
+    val filePickerLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
+        onFilePicked(uri)
+    }
+
     val isEnabled by AudioProcessorService.isEnabled.collectAsState()
     val bandGains by AudioProcessorService.bandGains.collectAsState()
     val preAmpDb by AudioProcessorService.preAmpDb.collectAsState()
@@ -313,7 +466,7 @@ fun MainScreen(
     var showSettingsSheet by remember { mutableStateOf(false) }
     var showPresetManagerSheet by remember { mutableStateOf(false) }
     var showTutorial by remember { mutableStateOf(isFirstRunInitial) }
-    var whitelistApplied by remember { mutableStateOf(false) }
+    var whitelistApplied by remember(isBatteryOptimizationIgnored) { mutableStateOf(isBatteryOptimizationIgnored) }
 
     var lastActiveBassBoostPercent by remember { mutableStateOf(if (bassBoostPercent > 0f) bassBoostPercent else 35f) }
     var lastActivePreAmpDb by remember { mutableStateOf(if (preAmpDb != 0f) preAmpDb else 2.0f) }
@@ -363,6 +516,10 @@ fun MainScreen(
         presetToDelete = null
     }
 
+    BackHandler(enabled = pendingImportPresets != null) {
+        onDismissImportDialog()
+    }
+
     if (showSettingsSheet) {
         SettingsSheet(
             onDismiss = { showSettingsSheet = false },
@@ -403,7 +560,10 @@ fun MainScreen(
             onReorder = onReorderPresets,
             onDelete = onDeletePreset,
             onRestore = onRestorePreset,
-            onResetToDefaults = onResetPresets
+            onResetToDefaults = onResetPresets,
+            onSharePreset = onSharePreset,
+            onExportAllPresets = { onExportAllPresets(customPresets) },
+            onImportPresetsFile = { filePickerLauncher.launch("*/*") }
         )
     }
 
@@ -1103,6 +1263,138 @@ fun MainScreen(
                 },
                 containerColor = colors.cardBg
             )
+        }
+
+        pendingImportPresets?.let { importList ->
+            if (importList.size == 1) {
+                val preset = importList.first()
+                AlertDialog(
+                    onDismissRequest = onDismissImportDialog,
+                    title = {
+                        Text(
+                            text = androidx.compose.ui.res.stringResource(com.omix.alleq.R.string.dialog_import_preset_title),
+                            fontFamily = BenzinFontFamily,
+                            fontSize = 15.sp,
+                            color = colors.textPrimary,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 0.5.sp
+                        )
+                    },
+                    text = {
+                        Column {
+                            Text(
+                                text = androidx.compose.ui.res.stringResource(
+                                    com.omix.alleq.R.string.dialog_import_preset_desc,
+                                    preset.name,
+                                    if (preset.preAmpDb > 0) "+${preset.preAmpDb}" else "${preset.preAmpDb}",
+                                    preset.bassBoostPercent.toInt()
+                                ),
+                                fontFamily = WixFontFamily,
+                                fontSize = 13.sp,
+                                color = colors.textSecondary
+                            )
+                            Spacer(modifier = Modifier.height(10.dp))
+                            Text(
+                                text = "Bands: " + preset.bandGains.joinToString(" / ") { "${it.toInt()}dB" },
+                                fontFamily = WixFontFamily,
+                                fontSize = 11.sp,
+                                color = colors.textMuted
+                            )
+                        }
+                    },
+                    confirmButton = {
+                        TextButton(
+                            onClick = {
+                                onImportSinglePreset(preset, true)
+                                onDismissImportDialog()
+                            }
+                        ) {
+                            Text(
+                                text = androidx.compose.ui.res.stringResource(com.omix.alleq.R.string.dialog_btn_import_and_apply),
+                                fontFamily = WixFontFamily,
+                                color = colors.accent,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    },
+                    dismissButton = {
+                        Row {
+                            TextButton(
+                                onClick = {
+                                    onImportSinglePreset(preset, false)
+                                    onDismissImportDialog()
+                                }
+                            ) {
+                                Text(
+                                    text = androidx.compose.ui.res.stringResource(com.omix.alleq.R.string.dialog_btn_import_save_only),
+                                    fontFamily = WixFontFamily,
+                                    color = colors.textPrimary
+                                )
+                            }
+                            TextButton(onClick = onDismissImportDialog) {
+                                Text(
+                                    text = androidx.compose.ui.res.stringResource(com.omix.alleq.R.string.dialog_btn_cancel),
+                                    fontFamily = WixFontFamily,
+                                    color = colors.textSecondary
+                                )
+                            }
+                        }
+                    },
+                    containerColor = colors.cardBg
+                )
+            } else if (importList.size > 1) {
+                AlertDialog(
+                    onDismissRequest = onDismissImportDialog,
+                    title = {
+                        Text(
+                            text = androidx.compose.ui.res.stringResource(com.omix.alleq.R.string.dialog_import_pack_title),
+                            fontFamily = BenzinFontFamily,
+                            fontSize = 15.sp,
+                            color = colors.textPrimary,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 0.5.sp
+                        )
+                    },
+                    text = {
+                        val namesList = importList.take(6).joinToString(", ") { it.name } + if (importList.size > 6) "..." else ""
+                        Text(
+                            text = androidx.compose.ui.res.stringResource(
+                                com.omix.alleq.R.string.dialog_import_pack_desc,
+                                importList.size,
+                                namesList
+                            ),
+                            fontFamily = WixFontFamily,
+                            fontSize = 13.sp,
+                            color = colors.textSecondary
+                        )
+                    },
+                    confirmButton = {
+                        TextButton(
+                            onClick = {
+                                onImportPresetsPack(importList)
+                                onDismissImportDialog()
+                            }
+                        ) {
+                            Text(
+                                text = androidx.compose.ui.res.stringResource(com.omix.alleq.R.string.dialog_btn_import_all),
+                                fontFamily = WixFontFamily,
+                                color = colors.accent,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = onDismissImportDialog) {
+                            Text(
+                                text = androidx.compose.ui.res.stringResource(com.omix.alleq.R.string.dialog_btn_cancel),
+                                fontFamily = WixFontFamily,
+                                color = colors.textSecondary
+                            )
+                        }
+                    },
+                    containerColor = colors.cardBg
+                )
+            }
         }
     }
 }

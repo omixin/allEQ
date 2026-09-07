@@ -40,7 +40,10 @@ fun PresetManagerSheet(
     onReorder: (List<EqualizerPreset>) -> Unit,
     onDelete: (String) -> Unit,
     onRestore: (String) -> Unit,
-    onResetToDefaults: () -> Unit
+    onResetToDefaults: () -> Unit,
+    onSharePreset: (EqualizerPreset) -> Unit = {},
+    onExportAllPresets: () -> Unit = {},
+    onImportPresetsFile: () -> Unit = {}
 ) {
     val colors = LocalEqColors.current
     val haptic = LocalHapticFeedback.current
@@ -233,8 +236,20 @@ fun PresetManagerSheet(
 
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 IconButton(
+                                    onClick = { onSharePreset(preset) },
+                                    modifier = Modifier.size(40.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Share,
+                                        contentDescription = "Share",
+                                        tint = colors.textSecondary,
+                                        modifier = Modifier.size(19.dp)
+                                    )
+                                }
+
+                                IconButton(
                                     onClick = { onDelete(preset.name) },
-                                    modifier = Modifier.size(44.dp)
+                                    modifier = Modifier.size(40.dp)
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.DeleteOutline,
@@ -400,6 +415,58 @@ fun PresetManagerSheet(
 
                 item {
                     Spacer(modifier = Modifier.height(10.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = onImportPresetsFile,
+                            shape = RoundedCornerShape(12.dp),
+                            border = BorderStroke(1.dp, colors.border),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = colors.accent),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.FileOpen,
+                                contentDescription = "Import",
+                                modifier = Modifier.size(16.dp),
+                                tint = colors.accent
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = androidx.compose.ui.res.stringResource(com.omix.alleq.R.string.btn_import_preset_file),
+                                fontFamily = WixFontFamily,
+                                fontSize = 10.5.sp,
+                                fontWeight = FontWeight.Medium,
+                                maxLines = 1
+                            )
+                        }
+
+                        OutlinedButton(
+                            onClick = onExportAllPresets,
+                            shape = RoundedCornerShape(12.dp),
+                            border = BorderStroke(1.dp, colors.border),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = colors.textPrimary),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Share,
+                                contentDescription = "Export All",
+                                modifier = Modifier.size(16.dp),
+                                tint = colors.textPrimary
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = androidx.compose.ui.res.stringResource(com.omix.alleq.R.string.btn_export_all_presets),
+                                fontFamily = WixFontFamily,
+                                fontSize = 10.5.sp,
+                                fontWeight = FontWeight.Medium,
+                                maxLines = 1
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
                     OutlinedButton(
                         onClick = onResetToDefaults,
                         shape = RoundedCornerShape(12.dp),

@@ -12,3 +12,4 @@ local.properties
 *.keystore
 keystore.properties
 app_icons_preview/
+.kotlin/

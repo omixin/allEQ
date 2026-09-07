@@ -1,5 +1,6 @@
 package com.omix.alleq.service
 
+import android.annotation.SuppressLint
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -16,7 +17,7 @@ import android.media.AudioPlaybackConfiguration
 import android.os.Binder
 import android.os.Build
 import android.os.IBinder
-import android.util.Log
+import android.media.audiofx.AudioEffect
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import com.omix.alleq.MainActivity
@@ -104,6 +105,7 @@ class AudioProcessorService : Service() {
 
     private var deviceCallback: AudioDeviceCallback? = null
     private var volumeReceiver: BroadcastReceiver? = null
+    private var audioSessionReceiver: BroadcastReceiver? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -113,6 +115,7 @@ class AudioProcessorService : Service() {
         startForeground(NOTIFICATION_ID, buildNotification())
         initAudioEngines()
         registerPlaybackCallback()
+        registerAudioSessionReceiver()
         registerDeviceCallback()
         registerVolumeReceiver()
         updateAudioDeviceDescription()
@@ -247,6 +250,45 @@ class AudioProcessorService : Service() {
         attachSession(0)
     }
 
+    @SuppressLint("BlockedPrivateApi", "PrivateApi", "DiscouragedPrivateApi")
+    private fun extractSessionId(config: AudioPlaybackConfiguration): Int {
+        return try {
+            val method = config.javaClass.getMethod("getAudioSessionId")
+            (method.invoke(config) as? Int) ?: 0
+        } catch (_: Exception) {
+            try {
+                val fieldName = "m" + "SessionId"
+                val field = config.javaClass.getDeclaredField(fieldName)
+                field.isAccessible = true
+                field.getInt(config)
+            } catch (_: Exception) {
+                0
+            }
+        }
+    }
+
+    private fun updateSessionArbitration(isAudioPlayingOverride: Boolean? = null) {
+        val specificSessions = engines.keys.filter { it != 0 }
+        val hasSpecificSessions = specificSessions.isNotEmpty()
+        val shouldBeActive = _isEnabled.value && !_isTemporaryBypass.value
+
+        // prevent double eq: when specific sessions are active, mute session 0
+        engines[0]?.setEnabled(shouldBeActive && !hasSpecificSessions)
+
+        // all active specific sessions receive user's DSP settings
+        specificSessions.forEach { sid ->
+            engines[sid]?.setEnabled(shouldBeActive)
+        }
+
+        val playing = isAudioPlayingOverride ?: (audioManager.isMusicActive || hasSpecificSessions)
+        _activeSessionsCount.value = if (shouldBeActive && playing) {
+            if (hasSpecificSessions) specificSessions.size else 1
+        } else 0
+
+        updateDynamicBass()
+        updateNotification()
+    }
+
     private fun registerPlaybackCallback() {
         try {
             playbackCallback = object : AudioManager.AudioPlaybackCallback() {
@@ -254,19 +296,28 @@ class AudioProcessorService : Service() {
                     super.onPlaybackConfigChanged(configs)
                     configs ?: return
 
-                    // route through session 0 only
+                    // collect currently playing audio sessions from configs
+                    val activeSessionIds = configs
+                        .map { extractSessionId(it) }
+                        .filter { it > 0 }
+                        .toSet()
+
+                    // attach to new media sessions (forces android to disable offload for them)
+                    activeSessionIds.forEach { sessionId ->
+                        if (!engines.containsKey(sessionId)) {
+                            attachSession(sessionId)
+                        }
+                    }
+
+                    // detach closed media sessions (except global session 0)
                     engines.keys.toList().forEach { sessionId ->
-                        if (sessionId != 0) {
+                        if (sessionId != 0 && !activeSessionIds.contains(sessionId)) {
                             detachSession(sessionId)
                         }
                     }
 
                     val isAudioPlaying = audioManager.isMusicActive || configs.isNotEmpty()
-                    val shouldBeActive = _isEnabled.value && !_isTemporaryBypass.value
-                    engines[0]?.setEnabled(shouldBeActive)
-
-                    _activeSessionsCount.value = if (shouldBeActive && isAudioPlaying) 1 else 0
-                    updateNotification()
+                    updateSessionArbitration(isAudioPlaying)
                 }
             }
             audioManager.registerAudioPlaybackCallback(playbackCallback!!, null)
@@ -275,26 +326,74 @@ class AudioProcessorService : Service() {
         }
     }
 
+    private fun registerAudioSessionReceiver() {
+        audioSessionReceiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {
+                val sessionId = intent?.getIntExtra(AudioEffect.EXTRA_AUDIO_SESSION, AudioManager.ERROR) ?: return
+                if (sessionId <= 0) return
+                when (intent.action) {
+                    AudioEffect.ACTION_OPEN_AUDIO_EFFECT_CONTROL_SESSION -> {
+                        if (!engines.containsKey(sessionId)) {
+                            attachSession(sessionId)
+                            updateSessionArbitration()
+                        }
+                    }
+                    AudioEffect.ACTION_CLOSE_AUDIO_EFFECT_CONTROL_SESSION -> {
+                        detachSession(sessionId)
+                        updateSessionArbitration()
+                    }
+                }
+            }
+        }
+        val filter = IntentFilter().apply {
+            addAction(AudioEffect.ACTION_OPEN_AUDIO_EFFECT_CONTROL_SESSION)
+            addAction(AudioEffect.ACTION_CLOSE_AUDIO_EFFECT_CONTROL_SESSION)
+        }
+        ContextCompat.registerReceiver(this, audioSessionReceiver, filter, ContextCompat.RECEIVER_EXPORTED)
+    }
+
+    private fun unregisterAudioSessionReceiver() {
+        audioSessionReceiver?.let {
+            try {
+                unregisterReceiver(it)
+            } catch (_: Exception) {}
+            audioSessionReceiver = null
+        }
+    }
+
     private fun attachSession(sessionId: Int) {
-        val engine = DynamicsEngine(sessionId)
-        val success = engine.initialize(
-            bandGains = _bandGains.value,
-            preAmpDb = _preAmpDb.value,
-            bassBoostPercent = _bassBoostPercent.value,
-            limiterEnabled = _limiterEnabled.value,
-            isEnabled = _isEnabled.value
-        )
-        if (success) {
-            engines[sessionId] = engine
-            _activeSessionsCount.value = engines.size
-            AppLogger.log(tag, "Engine connected to session $sessionId (Total active: ${engines.size})")
-            updateDynamicBass()
+        if (engines.containsKey(sessionId)) return
+        try {
+            val engine = DynamicsEngine(sessionId)
+            val hasSpecificSessions = engines.keys.any { it != 0 } || (sessionId != 0)
+            val isSessionActive = _isEnabled.value && !_isTemporaryBypass.value && (if (sessionId == 0) !hasSpecificSessions else true)
+
+            val success = engine.initialize(
+                bandGains = _bandGains.value,
+                preAmpDb = _preAmpDb.value,
+                bassBoostPercent = _bassBoostPercent.value,
+                limiterEnabled = _limiterEnabled.value,
+                isEnabled = isSessionActive
+            )
+            if (success) {
+                engines[sessionId] = engine
+                _activeSessionsCount.value = engines.size
+                AppLogger.log(tag, "Engine connected to session $sessionId (Total active: ${engines.size})")
+                updateDynamicBass()
+            }
+        } catch (e: Exception) {
+            AppLogger.log(tag, "Failed to attach session $sessionId: ${e.message}")
         }
     }
 
     private fun detachSession(sessionId: Int) {
-        engines.remove(sessionId)?.release()
-        _activeSessionsCount.value = engines.size
+        try {
+            engines.remove(sessionId)?.release()
+            _activeSessionsCount.value = engines.size
+            AppLogger.log(tag, "Engine detached from session $sessionId (Total active: ${engines.size})")
+        } catch (e: Exception) {
+            AppLogger.log(tag, "Failed to detach session $sessionId: ${e.message}")
+        }
     }
 
     private fun loadSavedSettings() {
@@ -369,24 +468,20 @@ class AudioProcessorService : Service() {
 
     fun setEnabled(enabled: Boolean) {
         _isEnabled.value = enabled
-        engines.values.forEach { it.setEnabled(enabled) }
-        updateDynamicBass()
+        updateSessionArbitration()
         saveSettings()
-        updateNotification()
         AppLogger.log(tag, "Master switch: ${if (enabled) "ON" else "OFF"}")
         TelemetryManager.isDspEnabled = enabled
     }
 
     fun setTemporaryBypass(bypass: Boolean) {
         _isTemporaryBypass.value = bypass
+        updateSessionArbitration()
         if (bypass) {
-            engines.values.forEach { it.setEnabled(false) }
             AppLogger.log(tag, "A/B Bypass: raw original sound active")
         } else {
-            engines.values.forEach { it.setEnabled(_isEnabled.value) }
             AppLogger.log(tag, "A/B Bypass: restored preset ${_activePresetName.value}")
         }
-        updateDynamicBass()
     }
 
     fun updateBands(gains: List<Float>) {
@@ -457,6 +552,39 @@ class AudioProcessorService : Service() {
         savePresetLists()
         AppLogger.log(tag, "Created preset: ${newPreset.name}")
         return true
+    }
+
+    // import an external preset into custom presets list
+    fun importPreset(preset: EqualizerPreset, applyNow: Boolean = false): Boolean {
+        val cleanPreset = preset.copy(isCustom = true)
+        val updated = _allPresets.value.filter { !it.name.equals(cleanPreset.name, ignoreCase = true) } + cleanPreset
+        _allPresets.value = updated
+        _customPresets.value = updated.filter { it.isCustom }
+        saveSettings()
+        savePresetLists()
+        AppLogger.log(tag, "Imported preset: ${cleanPreset.name}")
+        if (applyNow) {
+            applyPreset(cleanPreset.name)
+        }
+        return true
+    }
+
+    // import multiple external presets at once
+    fun importPresets(presets: List<EqualizerPreset>): Int {
+        if (presets.isEmpty()) return 0
+        var currentAll = _allPresets.value
+        var importedCount = 0
+        presets.forEach { p ->
+            val clean = p.copy(isCustom = true)
+            currentAll = currentAll.filter { !it.name.equals(clean.name, ignoreCase = true) } + clean
+            importedCount++
+        }
+        _allPresets.value = currentAll
+        _customPresets.value = currentAll.filter { it.isCustom }
+        saveSettings()
+        savePresetLists()
+        AppLogger.log(tag, "Imported $importedCount presets from pack")
+        return importedCount
     }
 
     fun reorderPresets(newOrder: List<EqualizerPreset>) {
@@ -644,7 +772,16 @@ class AudioProcessorService : Service() {
         }
     }
 
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        super.onTaskRemoved(rootIntent)
+        // ensure foreground service and notification remain active when task is swiped
+        if (_isEnabled.value) {
+            updateNotification()
+        }
+    }
+
     override fun onDestroy() {
+        unregisterAudioSessionReceiver()
         unregisterVolumeReceiver()
         deviceCallback?.let { audioManager.unregisterAudioDeviceCallback(it) }
         playbackCallback?.let { audioManager.unregisterAudioPlaybackCallback(it) }

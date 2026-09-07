@@ -181,4 +181,96 @@ object EqualizerDefaults {
         } catch (_: Exception) {}
         return list
     }
+
+    // serialize single preset to .alleq json format
+    fun presetToAlleqJson(preset: EqualizerPreset): String {
+        val root = org.json.JSONObject().apply {
+            put("format", "allEQ")
+            put("version", 1)
+            put("type", "single_preset")
+            val presetObj = presetToJsonObject(preset)
+            val array = org.json.JSONArray().apply { put(presetObj) }
+            put("presets", array)
+        }
+        return root.toString(2)
+    }
+
+    // serialize list of presets to .alleq pack format
+    fun presetPackToAlleqJson(presets: List<EqualizerPreset>): String {
+        val root = org.json.JSONObject().apply {
+            put("format", "allEQ")
+            put("version", 1)
+            put("type", "preset_pack")
+            val array = org.json.JSONArray()
+            presets.forEach { array.put(presetToJsonObject(it)) }
+            put("presets", array)
+        }
+        return root.toString(2)
+    }
+
+    private fun presetToJsonObject(preset: EqualizerPreset): org.json.JSONObject {
+        return org.json.JSONObject().apply {
+            put("name", preset.name)
+            put("description", preset.description)
+            put("preAmpDb", preset.preAmpDb.toDouble())
+            put("bassBoostPercent", preset.bassBoostPercent.toDouble())
+            put("limiterEnabled", preset.limiterEnabled)
+            put("isCustom", true)
+            val gainsArray = org.json.JSONArray()
+            preset.bandGains.forEach { gainsArray.put(it.toDouble()) }
+            put("bandGains", gainsArray)
+        }
+    }
+
+    // parse any .alleq payload or raw json into list of presets
+    fun parseAlleqPayload(payload: String?): List<EqualizerPreset> {
+        if (payload.isNullOrBlank()) return emptyList()
+        val trimmed = payload.trim()
+        val result = mutableListOf<EqualizerPreset>()
+
+        try {
+            if (trimmed.startsWith("{")) {
+                val obj = org.json.JSONObject(trimmed)
+                if (obj.has("presets")) {
+                    val array = obj.getJSONArray("presets")
+                    for (i in 0 until array.length()) {
+                        parsePresetObject(array.getJSONObject(i))?.let { result.add(it) }
+                    }
+                } else if (obj.has("bandGains")) {
+                    parsePresetObject(obj)?.let { result.add(it) }
+                }
+            } else if (trimmed.startsWith("[")) {
+                val array = org.json.JSONArray(trimmed)
+                for (i in 0 until array.length()) {
+                    parsePresetObject(array.getJSONObject(i))?.let { result.add(it) }
+                }
+            }
+        } catch (_: Exception) {}
+
+        return result
+    }
+
+    private fun parsePresetObject(obj: org.json.JSONObject): EqualizerPreset? {
+        return try {
+            val name = obj.optString("name", "Imported Preset")
+            val desc = obj.optString("description", "Custom preset")
+            val gainsArray = obj.getJSONArray("bandGains")
+            val gains = mutableListOf<Float>()
+            for (g in 0 until gainsArray.length()) {
+                gains.add(gainsArray.getDouble(g).toFloat())
+            }
+            if (gains.size != 10) return null
+            EqualizerPreset(
+                name = name,
+                description = desc,
+                bandGains = gains,
+                preAmpDb = obj.optDouble("preAmpDb", 0.0).toFloat(),
+                bassBoostPercent = obj.optDouble("bassBoostPercent", 0.0).toFloat(),
+                limiterEnabled = obj.optBoolean("limiterEnabled", false),
+                isCustom = true
+            )
+        } catch (_: Exception) {
+            null
+        }
+    }
 }

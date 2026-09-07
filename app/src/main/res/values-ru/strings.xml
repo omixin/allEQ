@@ -145,4 +145,21 @@
     <string name="notif_disabled">Выключен</string>
     <string name="notif_action_enable">Включить</string>
     <string name="notif_action_disable">Отключить</string>
+    <string name="oem_lock_hint">закрепи allEQ в недавних (значок замка), чтобы система не закрывала процесс</string>
+    
+    <!-- Preset Export / Import -->
+    <string name="btn_share_preset">поделиться пресетом</string>
+    <string name="btn_export_all_presets">экспорт всех пресетов (.alleq)</string>
+    <string name="btn_import_preset_file">импорт из файла (.alleq)</string>
+    <string name="dialog_import_preset_title">ИМПОРТ ПРЕСЕТА</string>
+    <string name="dialog_import_pack_title">ИМПОРТ НАБОРА ПРЕСЕТОВ</string>
+    <string name="dialog_import_preset_desc">Пресет: %1$s\nПредусиление: %2$s дБ, Бас: %3$d%%</string>
+    <string name="dialog_import_pack_desc">Найдено пресетов в файле: %1$d шт.\n%2$s</string>
+    <string name="dialog_btn_import_and_apply">импортировать и применить</string>
+    <string name="dialog_btn_import_save_only">сохранить в список</string>
+    <string name="dialog_btn_import_all">импортировать все</string>
+    <string name="toast_preset_imported">Пресет «%1$s» успешно добавлен!</string>
+    <string name="toast_preset_pack_imported">Импортировано пресетов: %1$d шт.!</string>
+    <string name="toast_import_failed">Не удалось прочитать файл .alleq</string>
+    <string name="share_preset_chooser_title">Поделиться пресетом allEQ</string>
 </resources>

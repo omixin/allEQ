@@ -82,26 +82,39 @@ object ShizukuManager {
         }
     }
 
+    fun isBatteryOptimizationIgnored(context: Context): Boolean {
+        val powerManager = context.getSystemService(Context.POWER_SERVICE) as? android.os.PowerManager
+        return powerManager?.isIgnoringBatteryOptimizations(context.packageName) ?: false
+    }
+
     // whitelist app from aggressive background killing
     fun applyOriginOsWhitelist(context: Context): Result<String> {
         val pkg = context.packageName
-        val script = """
-            cmd deviceidle whitelist +$pkg
-            cmd appops set $pkg RUN_IN_BACKGROUND allow
-            cmd appops set $pkg RUN_ANY_IN_BACKGROUND allow
-        """.trimIndent()
+        val commands = listOf(
+            "cmd deviceidle whitelist +$pkg",
+            "cmd appops set $pkg RUN_IN_BACKGROUND allow",
+            "cmd appops set $pkg RUN_ANY_IN_BACKGROUND allow",
+            "cmd appops set $pkg START_FOREGROUND allow",
+            "am set-standby-bucket $pkg active"
+        )
 
         val results = mutableListOf<String>()
-        script.lines().forEach { cmd ->
-            val cleanCmd = cmd.trim()
-            if (cleanCmd.isNotEmpty()) {
-                val res = runShellCommand(cleanCmd)
-                if (res.isFailure) {
-                    return Result.failure(res.exceptionOrNull() ?: Exception("Command execution failed: $cleanCmd"))
-                }
-                results.add("$cleanCmd -> OK")
+        var criticalSuccess = false
+
+        commands.forEach { cmd ->
+            val res = runShellCommand(cmd)
+            if (res.isSuccess) {
+                results.add("$cmd -> OK")
+                if (cmd.contains("deviceidle")) criticalSuccess = true
+            } else {
+                results.add("$cmd -> SKIPPED (${res.exceptionOrNull()?.message})")
             }
         }
-        return Result.success(results.joinToString("\n"))
+
+        return if (criticalSuccess) {
+            Result.success(results.joinToString("\n"))
+        } else {
+            Result.failure(Exception("Failed to apply deviceidle whitelist"))
+        }
     }
 }

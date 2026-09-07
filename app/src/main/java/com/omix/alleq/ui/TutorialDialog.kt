@@ -14,6 +14,7 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -138,7 +139,7 @@ fun TutorialDialog(
                     icon = Icons.Default.BatteryAlert,
                     isDone = whitelistApplied,
                     actionButton = {
-                        if (shizukuHasPermission && !whitelistApplied) {
+                        if (!whitelistApplied) {
                             Button(
                                 onClick = onApplyWhitelist,
                                 colors = ButtonDefaults.buttonColors(
@@ -156,7 +157,30 @@ fun TutorialDialog(
                     }
                 )
 
-                Spacer(modifier = Modifier.height(20.dp))
+                val isOemAggressive = remember {
+                    val m = android.os.Build.MANUFACTURER.lowercase()
+                    m.contains("vivo") || m.contains("iqoo") || m.contains("xiaomi") || m.contains("oppo") || m.contains("realme")
+                }
+                if (isOemAggressive) {
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = colors.badgeBg,
+                        border = BorderStroke(1.dp, colors.borderSubtle),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = androidx.compose.ui.res.stringResource(com.omix.alleq.R.string.oem_lock_hint),
+                            fontFamily = WixFontFamily,
+                            fontSize = 10.5.sp,
+                            color = colors.textSecondary,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(8.dp)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
 
                 Button(
                     onClick = onDismiss,

@@ -409,6 +409,28 @@ fun SettingsSheet(
                 onButtonClick = onApplyWhitelist
             )
 
+            val isOemAggressive = remember {
+                val m = android.os.Build.MANUFACTURER.lowercase()
+                m.contains("vivo") || m.contains("iqoo") || m.contains("xiaomi") || m.contains("oppo") || m.contains("realme")
+            }
+            if (isOemAggressive) {
+                Spacer(modifier = Modifier.height(6.dp))
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = colors.badgeBg,
+                    border = BorderStroke(1.dp, colors.borderSubtle),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = androidx.compose.ui.res.stringResource(com.omix.alleq.R.string.oem_lock_hint),
+                        fontFamily = WixFontFamily,
+                        fontSize = 10.5.sp,
+                        color = colors.textSecondary,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                    )
+                }
+            }
+
             Spacer(modifier = Modifier.height(12.dp))
 
             SettingsActionCard(
