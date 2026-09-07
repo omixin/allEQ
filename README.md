@@ -10,7 +10,7 @@
 [![Telegram](https://img.shields.io/badge/Telegram-Chat-229ED9.svg?style=flat-square&logo=telegram&logoColor=white)](https://t.me/allEQoff)
 [![Android](https://img.shields.io/badge/Android-10%2B%20(API%2029%2B)-blue.svg?style=flat-square)](https://developer.android.com)
 [![Shizuku](https://img.shields.io/badge/Shizuku-Required-8B5CF6.svg?style=flat-square)](https://shizuku.rikka.app)
-[![Offline](https://img.shields.io/badge/Network-100%25%20Offline-brightgreen.svg?style=flat-square)]()
+![Offline](https://img.shields.io/badge/Network-100%25%20Offline-brightgreen.svg?style=flat-square)
 [![License](https://img.shields.io/badge/License-GPL--3.0-orange.svg?style=flat-square)](LICENSE)
 
 [**English**](README.md) • [**Русский**](README_RU.md) • [**Telegram Chat**](https://t.me/allEQoff)
