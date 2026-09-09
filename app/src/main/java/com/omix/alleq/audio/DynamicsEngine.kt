@@ -21,7 +21,10 @@ class DynamicsEngine(val audioSessionId: Int) {
 
     fun isHealthy(): Boolean {
         return try {
-            isInitialized && (hwEq != null) && (hwEq?.hasControl() == true)
+            if (!isInitialized || hwEq == null) return false
+            // checking enabled verifies native binder without failing on non-exclusive control
+            val isEnabled = hwEq?.enabled ?: false
+            true
         } catch (_: Exception) {
             false
         }
@@ -29,18 +32,20 @@ class DynamicsEngine(val audioSessionId: Int) {
 
     fun getEngineStatus(): String {
         val eqStatus = hwEq?.let {
-            val bands = it.numberOfBands
-            val range = it.bandLevelRange.map { r -> r / 100 }
+            val bands = try { it.numberOfBands } catch (_: Exception) { 0.toShort() }
+            val range = try { it.bandLevelRange.map { r -> r / 100 } } catch (_: Exception) { listOf(0, 0) }
             val control = try { if (it.hasControl()) "HasControl" else "NoControl" } catch (_: Exception) { "Dead" }
-            "Active ($bands bands, range: ${range[0]}..${range[1]} dB, $control)"
+            "Active ($bands bands, range: ${range.getOrElse(0) { 0 }}..${range.getOrElse(1) { 0 }} dB, $control)"
         } ?: "Offline"
 
         val leStatus = loudnessEnhancer?.let {
-            "Active (targetGain: ${it.targetGain / 100} dB)"
+            val gain = try { it.targetGain / 100 } catch (_: Exception) { 0 }
+            "Active (targetGain: $gain dB)"
         } ?: "Offline"
 
         val bbStatus = hwBass?.let {
-            "Active (strength: ${it.roundedStrength / 10}%)"
+            val str = try { it.roundedStrength / 10 } catch (_: Exception) { 0 }
+            "Active (strength: $str%)"
         } ?: "Offline"
 
         val dpeStatus = dpe?.let { "Active (Limiter 0 dBFS)" } ?: "Offline"
@@ -348,41 +353,27 @@ class DynamicsEngine(val audioSessionId: Int) {
     }
 
     fun release() {
+        onControlStatusChanged = null
         try {
             resetToFlat()
         } catch (_: Exception) {}
 
-        try {
-            loudnessEnhancer?.enabled = false
-            loudnessEnhancer?.release()
-        } catch (_: Exception) {
-        } finally {
-            loudnessEnhancer = null
-        }
+        try { loudnessEnhancer?.enabled = false } catch (_: Exception) {}
+        try { loudnessEnhancer?.release() } catch (_: Exception) {}
+        loudnessEnhancer = null
 
-        try {
-            dpe?.enabled = false
-            dpe?.release()
-        } catch (_: Exception) {
-        } finally {
-            dpe = null
-        }
+        try { dpe?.enabled = false } catch (_: Exception) {}
+        try { dpe?.release() } catch (_: Exception) {}
+        dpe = null
 
-        try {
-            hwEq?.enabled = false
-            hwEq?.release()
-        } catch (_: Exception) {
-        } finally {
-            hwEq = null
-        }
+        try { hwEq?.setControlStatusListener(null) } catch (_: Exception) {}
+        try { hwEq?.enabled = false } catch (_: Exception) {}
+        try { hwEq?.release() } catch (_: Exception) {}
+        hwEq = null
 
-        try {
-            hwBass?.enabled = false
-            hwBass?.release()
-        } catch (_: Exception) {
-        } finally {
-            hwBass = null
-        }
+        try { hwBass?.enabled = false } catch (_: Exception) {}
+        try { hwBass?.release() } catch (_: Exception) {}
+        hwBass = null
 
         isInitialized = false
     }

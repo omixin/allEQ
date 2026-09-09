@@ -52,6 +52,8 @@ fun PresetManagerSheet(
 
     var draggedIndex by remember { mutableStateOf<Int?>(null) }
     var dragAccumulator by remember { mutableFloatStateOf(0f) }
+    val currentPresets by rememberUpdatedState(allPresets)
+    val currentOnReorder by rememberUpdatedState(onReorder)
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -262,7 +264,7 @@ fun PresetManagerSheet(
                                 Box(
                                     modifier = Modifier
                                         .size(44.dp)
-                                        .pointerInput(allPresets) {
+                                        .pointerInput(Unit) {
                                             detectVerticalDragGestures(
                                                 onDragStart = {
                                                     draggedIndex = index
@@ -283,15 +285,16 @@ fun PresetManagerSheet(
                                                     val current = draggedIndex ?: return@detectVerticalDragGestures
                                                     val steps = (dragAccumulator / itemHeightPx).toInt()
                                                     if (steps != 0) {
-                                                        val target = (current + steps).coerceIn(0, allPresets.size - 1)
+                                                        val list = currentPresets
+                                                        val target = (current + steps).coerceIn(0, list.size - 1)
                                                         if (target != current) {
-                                                            val mutable = allPresets.toMutableList()
+                                                            val mutable = list.toMutableList()
                                                             val item = mutable.removeAt(current)
                                                             mutable.add(target, item)
                                                             draggedIndex = target
                                                             dragAccumulator -= steps * itemHeightPx
                                                             haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                                            onReorder(mutable)
+                                                            currentOnReorder(mutable)
                                                         }
                                                     }
                                                 }

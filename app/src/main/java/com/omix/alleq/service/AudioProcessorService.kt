@@ -30,6 +30,7 @@ import com.omix.alleq.model.EqualizerPreset
 import com.omix.alleq.telemetry.TelemetryManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
@@ -54,6 +55,10 @@ class AudioProcessorService : Service() {
 
     private var playbackCallback: AudioManager.AudioPlaybackCallback? = null
     private var modeChangedListener: AudioManager.OnModeChangedListener? = null
+    private var isSpeakerOutput: Boolean = true
+    private var resurrectJob: Job? = null
+    private var lastResurrectTime: Long = 0L
+    private var saveSettingsJob: Job? = null
 
     companion object {
         const val CHANNEL_ID = "alleq_channel"
@@ -207,6 +212,7 @@ class AudioProcessorService : Service() {
             dev.type == AudioDeviceInfo.TYPE_USB_HEADSET
         } ?: devices.firstOrNull { it.type == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER }
 
+        isSpeakerOutput = activeDevice == null || activeDevice.type == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER
         val desc = when (activeDevice?.type) {
             AudioDeviceInfo.TYPE_BUILTIN_SPEAKER -> getString(R.string.device_speaker)
             AudioDeviceInfo.TYPE_BLUETOOTH_A2DP, AudioDeviceInfo.TYPE_BLUETOOTH_SCO -> getString(R.string.device_bluetooth)
@@ -299,11 +305,13 @@ class AudioProcessorService : Service() {
 
         if (mode == AudioManager.MODE_NORMAL) {
             // delay 300ms to allow audioflinger to restore multimedia mixer thread after call
-            serviceScope.launch {
+            resurrectJob?.cancel()
+            resurrectJob = serviceScope.launch {
                 delay(300)
                 resurrectSession0IfNeeded(force = true)
             }
         } else {
+            resurrectJob?.cancel()
             updateSessionArbitration()
         }
     }
@@ -314,13 +322,21 @@ class AudioProcessorService : Service() {
 
         // do not touch session 0 during active phone or voip calls
         val inCall = audioManager.mode == AudioManager.MODE_IN_COMMUNICATION ||
-                audioManager.mode == AudioManager.MODE_IN_CALL
+                audioManager.mode == AudioManager.MODE_IN_CALL ||
+                audioManager.mode == AudioManager.MODE_RINGTONE
         if (inCall) return
+
+        val now = System.currentTimeMillis()
+        if (!force && now - lastResurrectTime < 2000L) {
+            // cooldown to prevent rapid resurrection thrashing
+            return
+        }
 
         val engine0 = engines[0]
         val isUnhealthy = (engine0 == null) || (!engine0.isHealthy())
 
         if (force || isUnhealthy) {
+            lastResurrectTime = now
             AppLogger.log(tag, "Resurrecting session 0 engine (force=$force, unhealthy=$isUnhealthy)")
             detachSession(0)
             attachSession(0)
@@ -328,9 +344,11 @@ class AudioProcessorService : Service() {
 
             // schedule retry if audioflinger needed more time to settle
             if (engines[0]?.isHealthy() == false) {
-                serviceScope.launch {
+                resurrectJob?.cancel()
+                resurrectJob = serviceScope.launch {
                     delay(500)
                     if (engines[0]?.isHealthy() == false && _isEnabled.value && audioManager.mode == AudioManager.MODE_NORMAL) {
+                        lastResurrectTime = System.currentTimeMillis()
                         AppLogger.log(tag, "Retry resurrecting session 0 engine")
                         detachSession(0)
                         attachSession(0)
@@ -365,7 +383,11 @@ class AudioProcessorService : Service() {
     private fun updateSessionArbitration(isAudioPlayingOverride: Boolean? = null) {
         val specificSessions = engines.keys.filter { it != 0 }
         val hasSpecificSessions = specificSessions.isNotEmpty()
-        val shouldBeActive = _isEnabled.value && !_isTemporaryBypass.value
+        val inCall = audioManager.mode == AudioManager.MODE_IN_COMMUNICATION ||
+                audioManager.mode == AudioManager.MODE_IN_CALL ||
+                audioManager.mode == AudioManager.MODE_RINGTONE ||
+                (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && audioManager.mode == AudioManager.MODE_CALL_SCREENING)
+        val shouldBeActive = _isEnabled.value && !_isTemporaryBypass.value && !inCall
 
         // prevent double eq: when specific sessions are active, mute session 0
         engines[0]?.setEnabled(shouldBeActive && !hasSpecificSessions)
@@ -486,8 +508,9 @@ class AudioProcessorService : Service() {
                 engine.onControlStatusChanged = { granted ->
                     AppLogger.log(tag, "Session 0 control status: $granted")
                     if (granted && _isEnabled.value && audioManager.mode == AudioManager.MODE_NORMAL) {
-                        serviceScope.launch {
-                            delay(150)
+                        resurrectJob?.cancel()
+                        resurrectJob = serviceScope.launch {
+                            delay(200)
                             if (engines[0]?.isHealthy() == false) {
                                 resurrectSession0IfNeeded(force = true)
                             }
@@ -570,7 +593,20 @@ class AudioProcessorService : Service() {
         _customPresets.value = _allPresets.value.filter { it.isCustom }
     }
 
-    private fun saveSettings() {
+    private fun saveSettings(debounce: Boolean = false) {
+        if (debounce) {
+            saveSettingsJob?.cancel()
+            saveSettingsJob = serviceScope.launch {
+                delay(300)
+                writeSettingsToDisk()
+            }
+        } else {
+            saveSettingsJob?.cancel()
+            writeSettingsToDisk()
+        }
+    }
+
+    private fun writeSettingsToDisk() {
         val prefs = getSharedPreferences("alleq_audio_state", Context.MODE_PRIVATE)
         prefs.edit()
             .putBoolean("is_enabled", _isEnabled.value)
@@ -618,7 +654,7 @@ class AudioProcessorService : Service() {
     fun updateBands(gains: List<Float>) {
         _bandGains.value = gains
         engines.values.forEach { it.updateBands(gains, _bassBoostPercent.value) }
-        saveSettings()
+        saveSettings(debounce = true)
     }
 
     fun updateBand(index: Int, gain: Float) {
@@ -632,13 +668,13 @@ class AudioProcessorService : Service() {
     fun setPreAmp(db: Float) {
         _preAmpDb.value = db
         engines.values.forEach { it.updatePreAmpAndLimiter(db, _limiterEnabled.value) }
-        saveSettings()
+        saveSettings(debounce = true)
     }
 
     fun setBassBoost(percent: Float) {
         _bassBoostPercent.value = percent
         engines.values.forEach { it.updateBands(_bandGains.value, percent) }
-        saveSettings()
+        saveSettings(debounce = true)
     }
 
     fun setLimiterEnabled(enabled: Boolean) {
@@ -793,7 +829,7 @@ class AudioProcessorService : Service() {
             val ratio = (currentVol.toFloat() / maxVol.toFloat()).coerceIn(0f, 1f)
             _currentVolumeRatio.value = ratio
 
-            val isSpeaker = _currentAudioDevice.value.let { it.contains("speaker", ignoreCase = true) || it.contains("динамик", ignoreCase = true) }
+            val isSpeaker = isSpeakerOutput
 
             if (!_isEnabled.value || _isTemporaryBypass.value) {
                 _dynamicBassModeStatus.value = if (_isTemporaryBypass.value) getString(R.string.dynamic_bass_status_bypass) else getString(R.string.dynamic_bass_status_master_off)
@@ -915,11 +951,13 @@ class AudioProcessorService : Service() {
         unregisterModeListener()
         unregisterAudioSessionReceiver()
         unregisterVolumeReceiver()
-        deviceCallback?.let { audioManager.unregisterAudioDeviceCallback(it) }
-        playbackCallback?.let { audioManager.unregisterAudioPlaybackCallback(it) }
-        engines.values.forEach { it.release() }
+        try { deviceCallback?.let { audioManager.unregisterAudioDeviceCallback(it) } } catch (_: Exception) {}
+        try { playbackCallback?.let { audioManager.unregisterAudioPlaybackCallback(it) } } catch (_: Exception) {}
+        engines.values.forEach {
+            try { it.release() } catch (_: Exception) {}
+        }
         engines.clear()
-        serviceScope.cancel()
+        try { serviceScope.cancel() } catch (_: Exception) {}
         super.onDestroy()
     }
 }
