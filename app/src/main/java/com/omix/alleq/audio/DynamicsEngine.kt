@@ -17,11 +17,22 @@ class DynamicsEngine(val audioSessionId: Int) {
     private var hwBass: BassBoost? = null
     private var loudnessEnhancer: LoudnessEnhancer? = null
 
+    var onControlStatusChanged: ((Boolean) -> Unit)? = null
+
+    fun isHealthy(): Boolean {
+        return try {
+            isInitialized && (hwEq != null) && (hwEq?.hasControl() == true)
+        } catch (_: Exception) {
+            false
+        }
+    }
+
     fun getEngineStatus(): String {
         val eqStatus = hwEq?.let {
             val bands = it.numberOfBands
             val range = it.bandLevelRange.map { r -> r / 100 }
-            "Active ($bands bands, range: ${range[0]}..${range[1]} dB)"
+            val control = try { if (it.hasControl()) "HasControl" else "NoControl" } catch (_: Exception) { "Dead" }
+            "Active ($bands bands, range: ${range[0]}..${range[1]} dB, $control)"
         } ?: "Offline"
 
         val leStatus = loudnessEnhancer?.let {
@@ -62,6 +73,12 @@ class DynamicsEngine(val audioSessionId: Int) {
         try {
             hwEq = Equalizer(1000, audioSessionId).apply {
                 enabled = isEnabled
+                try {
+                    setControlStatusListener { _, controlGranted ->
+                        AppLogger.log(tag, "Session $audioSessionId control status: $controlGranted")
+                        onControlStatusChanged?.invoke(controlGranted)
+                    }
+                } catch (_: Exception) {}
             }
             hwEqBandsCount = hwEq?.numberOfBands?.toInt() ?: 0
             AppLogger.log(tag, "Session $audioSessionId: Hardware Equalizer connected ($hwEqBandsCount bands)")

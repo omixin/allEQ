@@ -10,6 +10,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.media.AudioAttributes
 import android.media.AudioDeviceCallback
 import android.media.AudioDeviceInfo
 import android.media.AudioManager
@@ -27,9 +28,15 @@ import com.omix.alleq.logger.AppLogger
 import com.omix.alleq.model.EqualizerDefaults
 import com.omix.alleq.model.EqualizerPreset
 import com.omix.alleq.telemetry.TelemetryManager
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import java.util.concurrent.ConcurrentHashMap
 
 class AudioProcessorService : Service() {
@@ -43,8 +50,10 @@ class AudioProcessorService : Service() {
 
     private lateinit var audioManager: AudioManager
     private val engines = ConcurrentHashMap<Int, DynamicsEngine>()
+    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
     private var playbackCallback: AudioManager.AudioPlaybackCallback? = null
+    private var modeChangedListener: AudioManager.OnModeChangedListener? = null
 
     companion object {
         const val CHANNEL_ID = "alleq_channel"
@@ -118,6 +127,7 @@ class AudioProcessorService : Service() {
         registerAudioSessionReceiver()
         registerDeviceCallback()
         registerVolumeReceiver()
+        registerModeListener()
         updateAudioDeviceDescription()
         updateDynamicBass()
         AppLogger.log(tag, "AudioProcessorService started successfully")
@@ -214,6 +224,9 @@ class AudioProcessorService : Service() {
             override fun onReceive(context: Context?, intent: Intent?) {
                 if (intent?.action == "android.media.VOLUME_CHANGED_ACTION") {
                     updateDynamicBass()
+                    if (audioManager.mode == AudioManager.MODE_NORMAL && engines[0]?.isHealthy() == false) {
+                        resurrectSession0IfNeeded()
+                    }
                 }
             }
         }
@@ -236,14 +249,96 @@ class AudioProcessorService : Service() {
             override fun onAudioDevicesAdded(addedDevices: Array<out AudioDeviceInfo>?) {
                 updateAudioDeviceDescription()
                 updateNotification()
+                resurrectSession0IfNeeded()
             }
 
             override fun onAudioDevicesRemoved(removedDevices: Array<out AudioDeviceInfo>?) {
                 updateAudioDeviceDescription()
                 updateNotification()
+                resurrectSession0IfNeeded()
             }
         }
         audioManager.registerAudioDeviceCallback(deviceCallback, null)
+    }
+
+    private fun registerModeListener() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            modeChangedListener = AudioManager.OnModeChangedListener { mode ->
+                handleAudioModeChanged(mode)
+            }
+            try {
+                audioManager.addOnModeChangedListener(mainExecutor, modeChangedListener!!)
+                AppLogger.log(tag, "Registered AudioManager.OnModeChangedListener")
+            } catch (e: Exception) {
+                AppLogger.log(tag, "Failed to register OnModeChangedListener: ${e.message}")
+            }
+        }
+    }
+
+    private fun unregisterModeListener() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            modeChangedListener?.let {
+                try {
+                    audioManager.removeOnModeChangedListener(it)
+                } catch (_: Exception) {}
+            }
+            modeChangedListener = null
+        }
+    }
+
+    private fun handleAudioModeChanged(mode: Int) {
+        val modeDesc = when (mode) {
+            AudioManager.MODE_NORMAL -> "NORMAL"
+            AudioManager.MODE_RINGTONE -> "RINGTONE"
+            AudioManager.MODE_IN_CALL -> "IN_CALL"
+            AudioManager.MODE_IN_COMMUNICATION -> "IN_COMMUNICATION"
+            AudioManager.MODE_CALL_SCREENING -> "CALL_SCREENING"
+            else -> "UNKNOWN ($mode)"
+        }
+        AppLogger.log(tag, "Audio mode shifted to $modeDesc")
+
+        if (mode == AudioManager.MODE_NORMAL) {
+            // delay 300ms to allow audioflinger to restore multimedia mixer thread after call
+            serviceScope.launch {
+                delay(300)
+                resurrectSession0IfNeeded(force = true)
+            }
+        } else {
+            updateSessionArbitration()
+        }
+    }
+
+    private fun resurrectSession0IfNeeded(force: Boolean = false) {
+        val shouldBeActive = _isEnabled.value && !_isTemporaryBypass.value
+        if (!shouldBeActive) return
+
+        // do not touch session 0 during active phone or voip calls
+        val inCall = audioManager.mode == AudioManager.MODE_IN_COMMUNICATION ||
+                audioManager.mode == AudioManager.MODE_IN_CALL
+        if (inCall) return
+
+        val engine0 = engines[0]
+        val isUnhealthy = (engine0 == null) || (!engine0.isHealthy())
+
+        if (force || isUnhealthy) {
+            AppLogger.log(tag, "Resurrecting session 0 engine (force=$force, unhealthy=$isUnhealthy)")
+            detachSession(0)
+            attachSession(0)
+            updateSessionArbitration()
+
+            // schedule retry if audioflinger needed more time to settle
+            if (engines[0]?.isHealthy() == false) {
+                serviceScope.launch {
+                    delay(500)
+                    if (engines[0]?.isHealthy() == false && _isEnabled.value && audioManager.mode == AudioManager.MODE_NORMAL) {
+                        AppLogger.log(tag, "Retry resurrecting session 0 engine")
+                        detachSession(0)
+                        attachSession(0)
+                        updateSessionArbitration()
+                    }
+                }
+            }
+        }
     }
 
     private fun initAudioEngines() {
@@ -296,8 +391,24 @@ class AudioProcessorService : Service() {
                     super.onPlaybackConfigChanged(configs)
                     configs ?: return
 
+                    // filter out voice calls (discord, phone, voip) and inactive tracks
+                    val mediaConfigs = configs.filter { config ->
+                        val usage = config.audioAttributes?.usage ?: AudioAttributes.USAGE_UNKNOWN
+                        // usage 17 corresponds to USAGE_CALL_ASSISTANCE on API 30+
+                        val isVoice = usage == AudioAttributes.USAGE_VOICE_COMMUNICATION ||
+                                usage == AudioAttributes.USAGE_VOICE_COMMUNICATION_SIGNALLING ||
+                                usage == 17
+                        val isActive = try {
+                            val method = config.javaClass.getMethod("isActive")
+                            (method.invoke(config) as? Boolean) ?: true
+                        } catch (_: Exception) {
+                            true
+                        }
+                        !isVoice && isActive
+                    }
+
                     // collect currently playing audio sessions from configs
-                    val activeSessionIds = configs
+                    val activeSessionIds = mediaConfigs
                         .map { extractSessionId(it) }
                         .filter { it > 0 }
                         .toSet()
@@ -316,8 +427,14 @@ class AudioProcessorService : Service() {
                         }
                     }
 
-                    val isAudioPlaying = audioManager.isMusicActive || configs.isNotEmpty()
+                    val isAudioPlaying = audioManager.isMusicActive || mediaConfigs.isNotEmpty()
                     updateSessionArbitration(isAudioPlaying)
+
+                    if (isAudioPlaying && audioManager.mode == AudioManager.MODE_NORMAL) {
+                        if (engines[0]?.isHealthy() == false) {
+                            resurrectSession0IfNeeded()
+                        }
+                    }
                 }
             }
             audioManager.registerAudioPlaybackCallback(playbackCallback!!, null)
@@ -365,6 +482,20 @@ class AudioProcessorService : Service() {
         if (engines.containsKey(sessionId)) return
         try {
             val engine = DynamicsEngine(sessionId)
+            if (sessionId == 0) {
+                engine.onControlStatusChanged = { granted ->
+                    AppLogger.log(tag, "Session 0 control status: $granted")
+                    if (granted && _isEnabled.value && audioManager.mode == AudioManager.MODE_NORMAL) {
+                        serviceScope.launch {
+                            delay(150)
+                            if (engines[0]?.isHealthy() == false) {
+                                resurrectSession0IfNeeded(force = true)
+                            }
+                        }
+                    }
+                }
+            }
+
             val hasSpecificSessions = engines.keys.any { it != 0 } || (sessionId != 0)
             val isSessionActive = _isEnabled.value && !_isTemporaryBypass.value && (if (sessionId == 0) !hasSpecificSessions else true)
 
@@ -781,12 +912,14 @@ class AudioProcessorService : Service() {
     }
 
     override fun onDestroy() {
+        unregisterModeListener()
         unregisterAudioSessionReceiver()
         unregisterVolumeReceiver()
         deviceCallback?.let { audioManager.unregisterAudioDeviceCallback(it) }
         playbackCallback?.let { audioManager.unregisterAudioPlaybackCallback(it) }
         engines.values.forEach { it.release() }
         engines.clear()
+        serviceScope.cancel()
         super.onDestroy()
     }
 }
