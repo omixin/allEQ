@@ -208,10 +208,10 @@ class AudioProcessorService : Service() {
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("allEQ • $stateText")
             .setContentText(getString(R.string.notif_active_sessions, _activeSessionsCount.value, _currentAudioDevice.value))
-            .setSmallIcon(android.R.drawable.ic_media_play)
+            .setSmallIcon(R.drawable.ic_qs_alleq)
             .setContentIntent(openPendingIntent)
             .setOngoing(true)
-            .addAction(android.R.drawable.ic_media_play, toggleActionText, togglePendingIntent)
+            .addAction(R.drawable.ic_qs_alleq, toggleActionText, togglePendingIntent)
             .build()
     }
 
