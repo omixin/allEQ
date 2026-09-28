@@ -67,6 +67,15 @@ class AudioProcessorService : Service() {
         const val ACTION_START = "com.omix.alleq.ACTION_START"
         const val ACTION_STOP = "com.omix.alleq.ACTION_STOP"
         const val ACTION_TOGGLE = "com.omix.alleq.ACTION_TOGGLE"
+        const val EXTRA_FORCE_ENABLE = "com.omix.alleq.EXTRA_FORCE_ENABLE"
+
+        @Volatile
+        var isServiceRunning: Boolean = false
+            private set
+
+        @Volatile
+        var instance: AudioProcessorService? = null
+            private set
 
         private val _isEnabled = MutableStateFlow(true)
         val isEnabled: StateFlow<Boolean> = _isEnabled.asStateFlow()
@@ -123,6 +132,8 @@ class AudioProcessorService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+        isServiceRunning = true
+        instance = this
         audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
         loadSavedSettings()
         createNotificationChannel()
@@ -135,6 +146,7 @@ class AudioProcessorService : Service() {
         registerModeListener()
         updateAudioDeviceDescription()
         updateDynamicBass()
+        AllEqTileService.requestUpdate(this)
         AppLogger.log(tag, "AudioProcessorService started successfully")
     }
 
@@ -142,6 +154,11 @@ class AudioProcessorService : Service() {
         when (intent?.action) {
             ACTION_TOGGLE -> {
                 toggleEnabled()
+            }
+            ACTION_START -> {
+                if (intent.getBooleanExtra(EXTRA_FORCE_ENABLE, false) && !_isEnabled.value) {
+                    setEnabled(true)
+                }
             }
             ACTION_STOP -> {
                 stopForeground(STOP_FOREGROUND_REMOVE)
@@ -636,7 +653,9 @@ class AudioProcessorService : Service() {
     fun setEnabled(enabled: Boolean) {
         _isEnabled.value = enabled
         updateSessionArbitration()
+        updateNotification()
         saveSettings()
+        AllEqTileService.requestUpdate(this)
         AppLogger.log(tag, "Master switch: ${if (enabled) "ON" else "OFF"}")
         TelemetryManager.isDspEnabled = enabled
     }
@@ -948,6 +967,9 @@ class AudioProcessorService : Service() {
     }
 
     override fun onDestroy() {
+        isServiceRunning = false
+        if (instance == this) instance = null
+        AllEqTileService.requestUpdate(this)
         unregisterModeListener()
         unregisterAudioSessionReceiver()
         unregisterVolumeReceiver()

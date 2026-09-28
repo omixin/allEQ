@@ -1,0 +1,11 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+
+    <!-- smoked glass 5-track equalizer with slanted facets and fader cutouts -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M2.5,8.05 L5.1,6.45 L5.1,9.69 L2.5,11.29 Z M2.5,12.59 L5.1,10.99 L5.1,15.95 L2.5,17.55 Z M6.6,5.8 L9.2,4.2 L9.2,11.72 L6.6,13.32 Z M6.6,14.62 L9.2,13.02 L9.2,18.2 L6.6,19.8 Z M10.7,3.8 L13.3,2.2 L13.3,5.06 L10.7,6.66 Z M10.7,7.96 L13.3,6.36 L13.3,20.2 L10.7,21.8 Z M14.8,6.05 L17.4,4.45 L17.4,10.33 L14.8,11.93 Z M14.8,13.23 L17.4,11.63 L17.4,17.95 L14.8,19.55 Z M18.9,8.3 L21.5,6.7 L21.5,11.76 L18.9,13.36 Z M18.9,14.66 L21.5,13.06 L21.5,15.7 L18.9,17.3 Z" />
+</vector>
