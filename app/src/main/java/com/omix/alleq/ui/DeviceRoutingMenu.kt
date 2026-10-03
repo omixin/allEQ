@@ -42,7 +42,14 @@ import com.omix.alleq.model.EqualizerPreset
 import com.omix.alleq.ui.theme.BenzinFontFamily
 import com.omix.alleq.ui.theme.LocalEqColors
 import com.omix.alleq.ui.theme.WixFontFamily
+import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.platform.LocalDensity
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @Composable
 fun DeviceRoutingDropdown(
@@ -269,12 +276,14 @@ fun DeviceRoutingDropdown(
                                 shrinkTowards = Alignment.Top,
                             ) + fadeOut(tween(120)),
                         ) {
-                            PresetPickerSubMenu(
+                            PresetPickerWheel(
                                 currentPresetName = activeDevice.assignedPresetName,
                                 allPresets = allPresets,
-                                onSelectPreset = { presetName ->
+                                onSelectPreset = { presetName, shouldClose ->
                                     onSelectDevicePreset(activeDevice.deviceKey, presetName)
-                                    pickingPresetForDeviceKey = null
+                                    if (shouldClose) {
+                                        pickingPresetForDeviceKey = null
+                                    }
                                 },
                             )
                         }
@@ -321,12 +330,14 @@ fun DeviceRoutingDropdown(
                                         shrinkTowards = Alignment.Top,
                                     ) + fadeOut(tween(120)),
                                 ) {
-                                    PresetPickerSubMenu(
+                                    PresetPickerWheel(
                                         currentPresetName = device.assignedPresetName,
                                         allPresets = allPresets,
-                                        onSelectPreset = { presetName ->
+                                        onSelectPreset = { presetName, shouldClose ->
                                             onSelectDevicePreset(device.deviceKey, presetName)
-                                            pickingPresetForDeviceKey = null
+                                            if (shouldClose) {
+                                                pickingPresetForDeviceKey = null
+                                            }
                                         },
                                     )
                                 }
@@ -449,64 +460,177 @@ private fun DeviceRowItem(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun PresetPickerSubMenu(
+private fun PresetPickerWheel(
     currentPresetName: String,
     allPresets: List<EqualizerPreset>,
-    onSelectPreset: (String) -> Unit,
+    onSelectPreset: (String, Boolean) -> Unit,
 ) {
     val colors = LocalEqColors.current
     val haptic = LocalHapticFeedback.current
+    val coroutineScope = rememberCoroutineScope()
+    val density = LocalDensity.current.density
+    val itemHeight = 32.dp
+    val itemHeightPx = with(LocalDensity.current) { itemHeight.toPx() }
 
-    Column(
+    val initialIndex = remember(allPresets, currentPresetName) {
+        allPresets.indexOfFirst { it.name.equals(currentPresetName, ignoreCase = true) }.coerceAtLeast(0)
+    }
+
+    val lazyListState = rememberLazyListState(initialFirstVisibleItemIndex = initialIndex)
+    val flingBehavior = rememberSnapFlingBehavior(lazyListState = lazyListState)
+
+    // track centered item for tactile haptic tick
+    var lastHapticIndex by remember { mutableIntStateOf(initialIndex) }
+
+    LaunchedEffect(lazyListState.firstVisibleItemIndex, lazyListState.firstVisibleItemScrollOffset) {
+        val layoutInfo = lazyListState.layoutInfo
+        val viewportCenter = layoutInfo.viewportSize.height / 2f
+        val closest = layoutInfo.visibleItemsInfo.minByOrNull {
+            kotlin.math.abs((it.offset + it.size / 2f) - viewportCenter)
+        }
+        val centerIndex = closest?.index ?: lazyListState.firstVisibleItemIndex
+        if (centerIndex in allPresets.indices && centerIndex != lastHapticIndex) {
+            lastHapticIndex = centerIndex
+            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+        }
+    }
+
+    // auto-apply live when drum stops snapping
+    LaunchedEffect(lazyListState.isScrollInProgress) {
+        if (!lazyListState.isScrollInProgress) {
+            val layoutInfo = lazyListState.layoutInfo
+            val viewportCenter = layoutInfo.viewportSize.height / 2f
+            val closest = layoutInfo.visibleItemsInfo.minByOrNull {
+                kotlin.math.abs((it.offset + it.size / 2f) - viewportCenter)
+            }
+            val centerIndex = closest?.index ?: lazyListState.firstVisibleItemIndex
+            if (centerIndex in allPresets.indices) {
+                val selected = allPresets[centerIndex]
+                if (!selected.name.equals(currentPresetName, ignoreCase = true)) {
+                    onSelectPreset(selected.name, false)
+                }
+            }
+        }
+    }
+
+    Box(
         modifier = Modifier
             .fillMaxWidth()
+            .height(96.dp)
             .padding(horizontal = 16.dp, vertical = 4.dp)
-            .clip(RoundedCornerShape(12.dp))
+            .clip(RoundedCornerShape(14.dp))
             .background(colors.surfaceElevated)
-            .border(1.dp, colors.cardBorder, RoundedCornerShape(12.dp))
-            .padding(4.dp),
-    ) {
-        allPresets.forEach { preset ->
-            val isSelected = preset.name.equals(currentPresetName, ignoreCase = true)
-            val itemBg by animateColorAsState(
-                targetValue = if (isSelected) colors.accent.copy(alpha = 0.15f) else Color.Transparent,
-                animationSpec = tween(150),
-                label = "preset_item_bg",
-            )
-            val textColor by animateColorAsState(
-                targetValue = if (isSelected) colors.accent else colors.textPrimary,
-                animationSpec = tween(150),
-                label = "preset_text_color",
-            )
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(itemBg)
-                    .clickable {
-                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                        onSelectPreset(preset.name)
-                    }
-                    .padding(horizontal = 10.dp, vertical = 6.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    text = preset.name,
-                    fontFamily = BenzinFontFamily,
-                    fontSize = 10.sp,
-                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                    color = textColor,
-                )
-                if (isSelected) {
-                    Icon(
-                        imageVector = Icons.Default.Check,
-                        contentDescription = null,
-                        tint = colors.accent,
-                        modifier = Modifier.size(12.dp),
+            .border(1.dp, colors.cardBorder, RoundedCornerShape(14.dp))
+            .drawWithContent {
+                drawContent()
+                // subtle 3D cylinder vignette at top
+                drawRect(
+                    brush = Brush.verticalGradient(
+                        0f to colors.surfaceElevated.copy(alpha = 0.94f),
+                        1f to Color.Transparent,
+                        startY = 0f,
+                        endY = 26.dp.toPx(),
                     )
+                )
+                // subtle 3D cylinder vignette at bottom
+                drawRect(
+                    brush = Brush.verticalGradient(
+                        0f to Color.Transparent,
+                        1f to colors.surfaceElevated.copy(alpha = 0.94f),
+                        startY = size.height - 26.dp.toPx(),
+                        endY = size.height,
+                    )
+                )
+            },
+        contentAlignment = Alignment.Center,
+    ) {
+        // center highlight slot
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(itemHeight)
+                .padding(horizontal = 4.dp)
+                .background(colors.accent.copy(alpha = 0.12f), RoundedCornerShape(8.dp))
+                .border(
+                    BorderStroke(0.75.dp, colors.accent.copy(alpha = 0.35f)),
+                    RoundedCornerShape(8.dp),
+                )
+        )
+
+        LazyColumn(
+            state = lazyListState,
+            flingBehavior = flingBehavior,
+            contentPadding = PaddingValues(vertical = 32.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.fillMaxSize(),
+        ) {
+            items(allPresets.size) { index ->
+                val preset = allPresets[index]
+                val isCurrent = preset.name.equals(currentPresetName, ignoreCase = true)
+
+                // 3D perspective calculation
+                val itemInfo = remember {
+                    derivedStateOf {
+                        lazyListState.layoutInfo.visibleItemsInfo.firstOrNull { it.index == index }
+                    }
+                }.value
+
+                val viewportHeight = lazyListState.layoutInfo.viewportSize.height.toFloat()
+                val viewportCenter = viewportHeight / 2f
+                val itemCenter = itemInfo?.let { it.offset + it.size / 2f } ?: viewportCenter
+                val offsetFraction = if (itemHeightPx > 0f) {
+                    ((itemCenter - viewportCenter) / itemHeightPx).coerceIn(-2.2f, 2.2f)
+                } else 0f
+
+                val rotationX = offsetFraction * 36f
+                val scale = (1f - kotlin.math.abs(offsetFraction) * 0.12f).coerceIn(0.72f, 1f)
+                val alpha = (1f - kotlin.math.abs(offsetFraction) * 0.52f).coerceIn(0.18f, 1f)
+                val isNearCenter = kotlin.math.abs(offsetFraction) < 0.45f
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(itemHeight)
+                        .graphicsLayer {
+                            this.rotationX = rotationX
+                            this.scaleX = scale
+                            this.scaleY = scale
+                            this.alpha = alpha
+                            this.cameraDistance = 14f * density
+                        }
+                        .clickable {
+                            coroutineScope.launch {
+                                lazyListState.animateScrollToItem(index)
+                                onSelectPreset(preset.name, true)
+                            }
+                        },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center,
+                    ) {
+                        Text(
+                            text = preset.name.uppercase(),
+                            fontFamily = BenzinFontFamily,
+                            fontSize = if (isNearCenter) 10.5.sp else 9.5.sp,
+                            fontWeight = if (isNearCenter) FontWeight.Bold else FontWeight.Medium,
+                            letterSpacing = 0.5.sp,
+                            color = if (isNearCenter) colors.accent else colors.textSecondary,
+                            maxLines = 1,
+                        )
+                        if (isCurrent && isNearCenter) {
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Icon(
+                                imageVector = Icons.Default.Check,
+                                contentDescription = null,
+                                tint = colors.accent,
+                                modifier = Modifier.size(11.dp),
+                            )
+                        }
+                    }
                 }
             }
         }
