@@ -471,7 +471,7 @@ private fun PresetPickerWheel(
     val haptic = LocalHapticFeedback.current
     val coroutineScope = rememberCoroutineScope()
     val density = LocalDensity.current.density
-    val itemHeight = 32.dp
+    val itemHeight = 36.dp
     val itemHeightPx = with(LocalDensity.current) { itemHeight.toPx() }
 
     val initialIndex = remember(allPresets, currentPresetName) {
@@ -487,12 +487,14 @@ private fun PresetPickerWheel(
     LaunchedEffect(lazyListState.firstVisibleItemIndex, lazyListState.firstVisibleItemScrollOffset) {
         val layoutInfo = lazyListState.layoutInfo
         val viewportCenter = layoutInfo.viewportSize.height / 2f
-        val closest = layoutInfo.visibleItemsInfo.minByOrNull {
-            kotlin.math.abs((it.offset + it.size / 2f) - viewportCenter)
-        }
-        val centerIndex = closest?.index ?: lazyListState.firstVisibleItemIndex
-        if (centerIndex in allPresets.indices && centerIndex != lastHapticIndex) {
-            lastHapticIndex = centerIndex
+        val closest = layoutInfo.visibleItemsInfo
+            .filter { it.index in 1..allPresets.size }
+            .minByOrNull {
+                kotlin.math.abs((it.offset + it.size / 2f) - viewportCenter)
+            }
+        val centerPresetIndex = closest?.let { it.index - 1 } ?: lazyListState.firstVisibleItemIndex.coerceIn(0, allPresets.lastIndex)
+        if (centerPresetIndex in allPresets.indices && centerPresetIndex != lastHapticIndex) {
+            lastHapticIndex = centerPresetIndex
             haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
         }
     }
@@ -502,12 +504,14 @@ private fun PresetPickerWheel(
         if (!lazyListState.isScrollInProgress) {
             val layoutInfo = lazyListState.layoutInfo
             val viewportCenter = layoutInfo.viewportSize.height / 2f
-            val closest = layoutInfo.visibleItemsInfo.minByOrNull {
-                kotlin.math.abs((it.offset + it.size / 2f) - viewportCenter)
-            }
-            val centerIndex = closest?.index ?: lazyListState.firstVisibleItemIndex
-            if (centerIndex in allPresets.indices) {
-                val selected = allPresets[centerIndex]
+            val closest = layoutInfo.visibleItemsInfo
+                .filter { it.index in 1..allPresets.size }
+                .minByOrNull {
+                    kotlin.math.abs((it.offset + it.size / 2f) - viewportCenter)
+                }
+            val centerPresetIndex = closest?.let { it.index - 1 }
+            if (centerPresetIndex != null && centerPresetIndex in allPresets.indices) {
+                val selected = allPresets[centerPresetIndex]
                 if (!selected.name.equals(currentPresetName, ignoreCase = true)) {
                     onSelectPreset(selected.name, false)
                 }
@@ -518,28 +522,28 @@ private fun PresetPickerWheel(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(96.dp)
+            .height(108.dp)
             .padding(horizontal = 16.dp, vertical = 4.dp)
             .clip(RoundedCornerShape(14.dp))
             .background(colors.surfaceElevated)
             .border(1.dp, colors.cardBorder, RoundedCornerShape(14.dp))
             .drawWithContent {
                 drawContent()
-                // subtle 3D cylinder vignette at top
+                // convex 3D cylinder vignette at top (curves away into shadow)
                 drawRect(
                     brush = Brush.verticalGradient(
                         0f to colors.surfaceElevated.copy(alpha = 0.94f),
                         1f to Color.Transparent,
                         startY = 0f,
-                        endY = 26.dp.toPx(),
+                        endY = 30.dp.toPx(),
                     )
                 )
-                // subtle 3D cylinder vignette at bottom
+                // convex 3D cylinder vignette at bottom (curves underneath into shadow)
                 drawRect(
                     brush = Brush.verticalGradient(
                         0f to Color.Transparent,
                         1f to colors.surfaceElevated.copy(alpha = 0.94f),
-                        startY = size.height - 26.dp.toPx(),
+                        startY = size.height - 30.dp.toPx(),
                         endY = size.height,
                     )
                 )
@@ -554,7 +558,7 @@ private fun PresetPickerWheel(
                 .padding(horizontal = 4.dp)
                 .background(colors.accent.copy(alpha = 0.12f), RoundedCornerShape(8.dp))
                 .border(
-                    BorderStroke(0.75.dp, colors.accent.copy(alpha = 0.35f)),
+                    BorderStroke(1.dp, colors.accent.copy(alpha = 0.4f)),
                     RoundedCornerShape(8.dp),
                 )
         )
@@ -562,18 +566,24 @@ private fun PresetPickerWheel(
         LazyColumn(
             state = lazyListState,
             flingBehavior = flingBehavior,
-            contentPadding = PaddingValues(vertical = 32.dp),
+            contentPadding = PaddingValues(0.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier.fillMaxSize(),
         ) {
-            items(allPresets.size) { index ->
-                val preset = allPresets[index]
+            // Header dummy slot (index 0) so Preset 0 can center in slot 1
+            item(key = "header_spacer") {
+                Spacer(modifier = Modifier.height(itemHeight))
+            }
+
+            items(allPresets.size, key = { allPresets[it].name }) { presetIndex ->
+                val preset = allPresets[presetIndex]
+                val itemIndexInList = presetIndex + 1
                 val isCurrent = preset.name.equals(currentPresetName, ignoreCase = true)
 
                 // 3D perspective calculation
                 val itemInfo = remember {
                     derivedStateOf {
-                        lazyListState.layoutInfo.visibleItemsInfo.firstOrNull { it.index == index }
+                        lazyListState.layoutInfo.visibleItemsInfo.firstOrNull { it.index == itemIndexInList }
                     }
                 }.value
 
@@ -584,10 +594,11 @@ private fun PresetPickerWheel(
                     ((itemCenter - viewportCenter) / itemHeightPx).coerceIn(-2.2f, 2.2f)
                 } else 0f
 
-                val rotationX = offsetFraction * 36f
-                val scale = (1f - kotlin.math.abs(offsetFraction) * 0.12f).coerceIn(0.72f, 1f)
-                val alpha = (1f - kotlin.math.abs(offsetFraction) * 0.52f).coerceIn(0.18f, 1f)
-                val isNearCenter = kotlin.math.abs(offsetFraction) < 0.45f
+                // convex cylinder rotation: top curves away (+26 deg), bottom curves under (-26 deg)
+                val rotationX = -offsetFraction * 26f
+                val scale = (1f - kotlin.math.abs(offsetFraction) * 0.10f).coerceIn(0.80f, 1f)
+                val alpha = (1f - kotlin.math.abs(offsetFraction) * 0.45f).coerceIn(0.22f, 1f)
+                val isNearCenter = kotlin.math.abs(offsetFraction) < 0.35f
 
                 Box(
                     modifier = Modifier
@@ -598,11 +609,11 @@ private fun PresetPickerWheel(
                             this.scaleX = scale
                             this.scaleY = scale
                             this.alpha = alpha
-                            this.cameraDistance = 14f * density
+                            this.cameraDistance = 18f * density
                         }
                         .clickable {
                             coroutineScope.launch {
-                                lazyListState.animateScrollToItem(index)
+                                lazyListState.animateScrollToItem(presetIndex)
                                 onSelectPreset(preset.name, true)
                             }
                         },
@@ -615,7 +626,7 @@ private fun PresetPickerWheel(
                         Text(
                             text = preset.name.uppercase(),
                             fontFamily = BenzinFontFamily,
-                            fontSize = if (isNearCenter) 10.5.sp else 9.5.sp,
+                            fontSize = if (isNearCenter) 11.5.sp else 10.sp,
                             fontWeight = if (isNearCenter) FontWeight.Bold else FontWeight.Medium,
                             letterSpacing = 0.5.sp,
                             color = if (isNearCenter) colors.accent else colors.textSecondary,
@@ -627,11 +638,16 @@ private fun PresetPickerWheel(
                                 imageVector = Icons.Default.Check,
                                 contentDescription = null,
                                 tint = colors.accent,
-                                modifier = Modifier.size(11.dp),
+                                modifier = Modifier.size(12.dp),
                             )
                         }
                     }
                 }
+            }
+
+            // Footer dummy slot so the last preset can center cleanly
+            item(key = "footer_spacer") {
+                Spacer(modifier = Modifier.height(itemHeight))
             }
         }
     }
