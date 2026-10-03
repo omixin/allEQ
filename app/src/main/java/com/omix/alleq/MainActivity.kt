@@ -65,6 +65,7 @@ import com.omix.alleq.model.EqualizerPreset
 import com.omix.alleq.service.AudioProcessorService
 import com.omix.alleq.shizuku.ShizukuManager
 import com.omix.alleq.telemetry.TelemetryManager
+import com.omix.alleq.ui.DeviceRoutingDropdown
 import com.omix.alleq.ui.PresetManagerSheet
 import com.omix.alleq.ui.SettingsSheet
 import com.omix.alleq.ui.TactileCapsuleFader
@@ -368,7 +369,9 @@ class MainActivity : ComponentActivity() {
                     },
                     onSharePreset = { preset -> sharePreset(preset) },
                     onExportAllPresets = { presets -> exportAllPresets(presets) },
-                    onFilePicked = { uri -> handleIncomingPresetUri(uri) }
+                    onFilePicked = { uri -> handleIncomingPresetUri(uri) },
+                    onToggleAutoDevicePreset = { enabled -> service?.setAutoDevicePresetEnabled(enabled) },
+                    onSetDevicePreset = { key, preset -> service?.setDevicePreset(key, preset) }
                 )
             }
         }
@@ -429,7 +432,9 @@ fun MainScreen(
     onImportPresetsPack: (List<EqualizerPreset>) -> Unit = {},
     onSharePreset: (EqualizerPreset) -> Unit = {},
     onExportAllPresets: (List<EqualizerPreset>) -> Unit = {},
-    onFilePicked: (Uri?) -> Unit = {}
+    onFilePicked: (Uri?) -> Unit = {},
+    onToggleAutoDevicePreset: (Boolean) -> Unit = {},
+    onSetDevicePreset: (String, String) -> Unit = { _, _ -> }
 ) {
     val filePickerLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
         onFilePicked(uri)
@@ -449,6 +454,11 @@ fun MainScreen(
     val customPresets by AudioProcessorService.customPresets.collectAsState()
     val currentAudioDevice by AudioProcessorService.currentAudioDevice.collectAsState()
     val isTemporaryBypass by AudioProcessorService.isTemporaryBypass.collectAsState()
+    val autoDevicePresetEnabled by AudioProcessorService.autoDevicePresetEnabled.collectAsState()
+    val knownDeviceBindings by AudioProcessorService.knownDeviceBindings.collectAsState()
+    val activeDeviceKey by AudioProcessorService.activeDeviceKey.collectAsState()
+
+    var showDeviceRoutingMenu by remember { mutableStateOf(false) }
 
     var showCreateDialog by remember { mutableStateOf(false) }
     var newPresetName by remember { mutableStateOf("") }
@@ -642,30 +652,73 @@ fun MainScreen(
                     )
                 }
 
-                Column(
+                Box(
                     modifier = Modifier
                         .weight(1f)
-                        .padding(horizontal = 12.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                        .padding(horizontal = 4.dp),
+                    contentAlignment = Alignment.Center,
                 ) {
-                    Text(
-                        text = "allEQ",
-                        fontFamily = BenzinFontFamily,
-                        fontSize = 17.sp,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 1.sp,
-                        color = colors.textPrimary,
-                        maxLines = 1
-                    )
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = getLocalizedAudioDevice(currentAudioDevice),
-                        fontFamily = WixFontFamily,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = colors.textSecondary,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                    Column(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable {
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                showDeviceRoutingMenu = !showDeviceRoutingMenu
+                            }
+                            .padding(vertical = 4.dp, horizontal = 8.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        Text(
+                            text = "allEQ",
+                            fontFamily = BenzinFontFamily,
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 1.sp,
+                            color = colors.textPrimary,
+                            maxLines = 1,
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center,
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(5.dp)
+                                    .clip(CircleShape)
+                                    .background(if (autoDevicePresetEnabled) colors.accent else colors.textMuted),
+                            )
+                            Spacer(modifier = Modifier.width(5.dp))
+                            Text(
+                                text = getLocalizedAudioDevice(currentAudioDevice),
+                                fontFamily = WixFontFamily,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = colors.textSecondary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                            Spacer(modifier = Modifier.width(3.dp))
+                            Icon(
+                                imageVector = Icons.Default.ArrowDropDown,
+                                contentDescription = null,
+                                tint = colors.textSecondary.copy(alpha = 0.7f),
+                                modifier = Modifier.size(14.dp),
+                            )
+                        }
+                    }
+
+                    DeviceRoutingDropdown(
+                        expanded = showDeviceRoutingMenu,
+                        onDismissRequest = { showDeviceRoutingMenu = false },
+                        autoSwitchEnabled = autoDevicePresetEnabled,
+                        onToggleAutoSwitch = { onToggleAutoDevicePreset(!autoDevicePresetEnabled) },
+                        activeKey = activeDeviceKey,
+                        knownDevices = knownDeviceBindings,
+                        allPresets = allPresets,
+                        onSelectDevicePreset = { key, presetName ->
+                            onSetDevicePreset(key, presetName)
+                        },
                     )
                 }
 

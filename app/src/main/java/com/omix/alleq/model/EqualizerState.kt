@@ -16,6 +16,21 @@ data class EqualizerPreset(
     val isCustom: Boolean = false
 )
 
+enum class AudioDeviceType {
+    SPEAKER,
+    BLUETOOTH,
+    WIRED,
+    USB
+}
+
+data class DevicePresetBinding(
+    val deviceKey: String,
+    val deviceName: String,
+    val deviceType: AudioDeviceType,
+    val assignedPresetName: String,
+    val isCurrentlyActive: Boolean = false
+)
+
 object EqualizerDefaults {
     val BANDS = listOf(
         EqualizerBand(0, 31, "31 Hz"),
@@ -272,5 +287,54 @@ object EqualizerDefaults {
         } catch (_: Exception) {
             null
         }
+    }
+
+    val DEFAULT_DEVICE_BINDINGS = listOf(
+        DevicePresetBinding(
+            deviceKey = "speaker",
+            deviceName = "Built-in Speaker",
+            deviceType = AudioDeviceType.SPEAKER,
+            assignedPresetName = "Flat",
+            isCurrentlyActive = true
+        )
+    )
+
+    fun deviceBindingsToJson(bindings: List<DevicePresetBinding>): String {
+        val array = org.json.JSONArray()
+        bindings.forEach { b ->
+            val obj = org.json.JSONObject().apply {
+                put("deviceKey", b.deviceKey)
+                put("deviceName", b.deviceName)
+                put("deviceType", b.deviceType.name)
+                put("assignedPresetName", b.assignedPresetName)
+            }
+            array.put(obj)
+        }
+        return array.toString()
+    }
+
+    fun deviceBindingsFromJson(json: String?): List<DevicePresetBinding> {
+        if (json.isNullOrBlank()) return emptyList()
+        val list = mutableListOf<DevicePresetBinding>()
+        try {
+            val array = org.json.JSONArray(json)
+            for (i in 0 until array.length()) {
+                val obj = array.getJSONObject(i)
+                val type = try {
+                    AudioDeviceType.valueOf(obj.optString("deviceType", AudioDeviceType.SPEAKER.name))
+                } catch (_: Exception) {
+                    AudioDeviceType.SPEAKER
+                }
+                list.add(
+                    DevicePresetBinding(
+                        deviceKey = obj.getString("deviceKey"),
+                        deviceName = obj.optString("deviceName", "Device"),
+                        deviceType = type,
+                        assignedPresetName = obj.optString("assignedPresetName", "Flat")
+                    )
+                )
+            }
+        } catch (_: Exception) {}
+        return list
     }
 }

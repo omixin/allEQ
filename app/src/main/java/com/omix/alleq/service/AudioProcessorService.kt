@@ -25,6 +25,8 @@ import com.omix.alleq.MainActivity
 import com.omix.alleq.R
 import com.omix.alleq.audio.DynamicsEngine
 import com.omix.alleq.logger.AppLogger
+import com.omix.alleq.model.AudioDeviceType
+import com.omix.alleq.model.DevicePresetBinding
 import com.omix.alleq.model.EqualizerDefaults
 import com.omix.alleq.model.EqualizerPreset
 import com.omix.alleq.telemetry.TelemetryManager
@@ -124,6 +126,15 @@ class AudioProcessorService : Service() {
 
         private val _dynamicBassModeStatus = MutableStateFlow("Standby")
         val dynamicBassModeStatus: StateFlow<String> = _dynamicBassModeStatus.asStateFlow()
+
+        private val _autoDevicePresetEnabled = MutableStateFlow(true)
+        val autoDevicePresetEnabled: StateFlow<Boolean> = _autoDevicePresetEnabled.asStateFlow()
+
+        private val _knownDeviceBindings = MutableStateFlow<List<DevicePresetBinding>>(EqualizerDefaults.DEFAULT_DEVICE_BINDINGS)
+        val knownDeviceBindings: StateFlow<List<DevicePresetBinding>> = _knownDeviceBindings.asStateFlow()
+
+        private val _activeDeviceKey = MutableStateFlow("speaker")
+        val activeDeviceKey: StateFlow<String> = _activeDeviceKey.asStateFlow()
     }
 
     private var deviceCallback: AudioDeviceCallback? = null
@@ -220,26 +231,91 @@ class AudioProcessorService : Service() {
         manager.notify(NOTIFICATION_ID, buildNotification())
     }
 
+    private fun detectActiveOutputDevice(dev: AudioDeviceInfo?): Triple<String, String, AudioDeviceType> {
+        if (dev == null || dev.type == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER) {
+            return Triple("speaker", getString(R.string.device_speaker), AudioDeviceType.SPEAKER)
+        }
+        val rawName = dev.productName?.toString()?.trim().orEmpty()
+        return when (dev.type) {
+            AudioDeviceInfo.TYPE_BLUETOOTH_A2DP, AudioDeviceInfo.TYPE_BLUETOOTH_SCO -> {
+                val name = if (rawName.isNotBlank() && !rawName.equals("Bluetooth", ignoreCase = true)) {
+                    rawName
+                } else {
+                    getString(R.string.device_bluetooth)
+                }
+                val key = "bluetooth_" + name.lowercase().replace("[^a-z0-9]+".toRegex(), "_").trim('_')
+                Triple(key, name, AudioDeviceType.BLUETOOTH)
+            }
+            AudioDeviceInfo.TYPE_WIRED_HEADSET, AudioDeviceInfo.TYPE_WIRED_HEADPHONES -> {
+                val name = if (rawName.isNotBlank()) rawName else getString(R.string.device_wired)
+                Triple("wired", name, AudioDeviceType.WIRED)
+            }
+            AudioDeviceInfo.TYPE_USB_HEADSET, AudioDeviceInfo.TYPE_USB_DEVICE -> {
+                val name = if (rawName.isNotBlank()) rawName else getString(R.string.device_usb)
+                val key = "usb_" + name.lowercase().replace("[^a-z0-9]+".toRegex(), "_").trim('_')
+                Triple(key, name, AudioDeviceType.USB)
+            }
+            else -> Triple("speaker", getString(R.string.device_speaker), AudioDeviceType.SPEAKER)
+        }
+    }
+
     private fun updateAudioDeviceDescription() {
         val devices = audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS)
         val activeDevice = devices.firstOrNull { dev ->
             dev.type == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP ||
             dev.type == AudioDeviceInfo.TYPE_WIRED_HEADSET ||
             dev.type == AudioDeviceInfo.TYPE_WIRED_HEADPHONES ||
-            dev.type == AudioDeviceInfo.TYPE_USB_HEADSET
+            dev.type == AudioDeviceInfo.TYPE_USB_HEADSET ||
+            dev.type == AudioDeviceInfo.TYPE_USB_DEVICE
         } ?: devices.firstOrNull { it.type == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER }
 
         isSpeakerOutput = activeDevice == null || activeDevice.type == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER
-        val desc = when (activeDevice?.type) {
-            AudioDeviceInfo.TYPE_BUILTIN_SPEAKER -> getString(R.string.device_speaker)
-            AudioDeviceInfo.TYPE_BLUETOOTH_A2DP, AudioDeviceInfo.TYPE_BLUETOOTH_SCO -> getString(R.string.device_bluetooth)
-            AudioDeviceInfo.TYPE_WIRED_HEADSET, AudioDeviceInfo.TYPE_WIRED_HEADPHONES -> getString(R.string.device_wired)
-            AudioDeviceInfo.TYPE_USB_HEADSET, AudioDeviceInfo.TYPE_USB_DEVICE -> getString(R.string.device_usb)
-            else -> getString(R.string.device_speaker)
+        val (deviceKey, deviceName, deviceType) = detectActiveOutputDevice(activeDevice)
+        _activeDeviceKey.value = deviceKey
+        _currentAudioDevice.value = deviceName
+
+        // register or update known device profile dynamically
+        val currentBindings = _knownDeviceBindings.value.toMutableList()
+        val existingIndex = currentBindings.indexOfFirst { it.deviceKey == deviceKey }
+        val assignedPreset: String
+
+        if (existingIndex >= 0) {
+            val existing = currentBindings[existingIndex]
+            assignedPreset = existing.assignedPresetName
+            currentBindings[existingIndex] = existing.copy(
+                deviceName = deviceName,
+                deviceType = deviceType,
+                isCurrentlyActive = true,
+            )
+        } else {
+            // newly discovered audio output: default preset is Bass Punch for Bluetooth, Flat for others
+            assignedPreset = if (deviceType == AudioDeviceType.BLUETOOTH) "Bass Punch" else "Flat"
+            currentBindings.add(
+                DevicePresetBinding(
+                    deviceKey = deviceKey,
+                    deviceName = deviceName,
+                    deviceType = deviceType,
+                    assignedPresetName = assignedPreset,
+                    isCurrentlyActive = true,
+                ),
+            )
         }
-        _currentAudioDevice.value = desc
-        AppLogger.log(tag, "Audio output: $desc")
+
+        // update active status on all known bindings
+        _knownDeviceBindings.value = currentBindings.map {
+            it.copy(isCurrentlyActive = it.deviceKey == deviceKey)
+        }
+        saveSettings(debounce = true)
+        AppLogger.log(tag, "Audio output: $deviceName (key=$deviceKey, targetPreset=$assignedPreset)")
         updateDynamicBass()
+
+        // auto-apply assigned preset when routing changes
+        if (_autoDevicePresetEnabled.value && _isEnabled.value && !_isTemporaryBypass.value) {
+            if (!_activePresetName.value.equals(assignedPreset, ignoreCase = true)) {
+                AppLogger.log(tag, "Auto-switched preset to '$assignedPreset' for $deviceName")
+                applyPreset(assignedPreset, isAutoSwitch = true)
+            }
+        }
     }
 
     private fun registerVolumeReceiver() {
@@ -608,6 +684,15 @@ class AudioProcessorService : Service() {
         val deletedJson = prefs.getString("deleted_presets_json", null)
         _deletedPresets.value = EqualizerDefaults.allPresetsFromJson(deletedJson)
         _customPresets.value = _allPresets.value.filter { it.isCustom }
+
+        _autoDevicePresetEnabled.value = prefs.getBoolean("auto_device_preset_enabled", true)
+        val savedBindingsJson = prefs.getString("device_bindings_json", null)
+        val loadedBindings = EqualizerDefaults.deviceBindingsFromJson(savedBindingsJson)
+        if (loadedBindings.isNotEmpty()) {
+            _knownDeviceBindings.value = loadedBindings
+        } else {
+            _knownDeviceBindings.value = EqualizerDefaults.DEFAULT_DEVICE_BINDINGS
+        }
     }
 
     private fun saveSettings(debounce: Boolean = false) {
@@ -634,6 +719,8 @@ class AudioProcessorService : Service() {
             .putString("band_gains", _bandGains.value.joinToString(","))
             .putBoolean("dynamic_bass_enabled", _dynamicBassEnabled.value)
             .putFloat("dynamic_bass_strength", _dynamicBassStrength.value)
+            .putBoolean("auto_device_preset_enabled", _autoDevicePresetEnabled.value)
+            .putString("device_bindings_json", EqualizerDefaults.deviceBindingsToJson(_knownDeviceBindings.value))
             .apply()
     }
 
@@ -702,7 +789,7 @@ class AudioProcessorService : Service() {
         saveSettings()
     }
 
-    fun applyPreset(presetName: String) {
+    fun applyPreset(presetName: String, isAutoSwitch: Boolean = false) {
         val preset = _allPresets.value.find { it.name.equals(presetName, ignoreCase = true) }
             ?: _deletedPresets.value.find { it.name.equals(presetName, ignoreCase = true) }
             ?: EqualizerDefaults.PRESETS.find { it.name.equals(presetName, ignoreCase = true) }
@@ -713,10 +800,44 @@ class AudioProcessorService : Service() {
         _limiterEnabled.value = preset.limiterEnabled
         updateBands(preset.bandGains)
         engines.values.forEach { it.updatePreAmpAndLimiter(preset.preAmpDb, preset.limiterEnabled) }
+
+        if (!isAutoSwitch) {
+            // remember preset for current active output device
+            val currentKey = _activeDeviceKey.value
+            _knownDeviceBindings.value = _knownDeviceBindings.value.map {
+                if (it.deviceKey == currentKey) it.copy(assignedPresetName = preset.name) else it
+            }
+        }
+
         saveSettings()
         updateNotification()
-        AppLogger.log(tag, "Applied preset: ${preset.name}")
+        AppLogger.log(tag, "Applied preset: ${preset.name} (autoSwitch=$isAutoSwitch)")
         TelemetryManager.currentPreset = preset.name
+    }
+
+    fun setDevicePreset(deviceKey: String, presetName: String) {
+        val updated = _knownDeviceBindings.value.map {
+            if (it.deviceKey == deviceKey) it.copy(assignedPresetName = presetName) else it
+        }
+        _knownDeviceBindings.value = updated
+        saveSettings()
+        if (_activeDeviceKey.value == deviceKey) {
+            applyPreset(presetName, isAutoSwitch = false)
+        }
+        AppLogger.log(tag, "Assigned preset '$presetName' to device '$deviceKey'")
+    }
+
+    fun setAutoDevicePresetEnabled(enabled: Boolean) {
+        _autoDevicePresetEnabled.value = enabled
+        saveSettings()
+        AppLogger.log(tag, "Auto device preset routing: ${if (enabled) "ON" else "OFF"}")
+        if (enabled && _isEnabled.value && !_isTemporaryBypass.value) {
+            val currentKey = _activeDeviceKey.value
+            val binding = _knownDeviceBindings.value.find { it.deviceKey == currentKey }
+            if (binding != null && !_activePresetName.value.equals(binding.assignedPresetName, ignoreCase = true)) {
+                applyPreset(binding.assignedPresetName, isAutoSwitch = true)
+            }
+        }
     }
 
     fun saveCustomPreset(name: String): Boolean {

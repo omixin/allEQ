@@ -6,6 +6,13 @@
     <string name="device_bluetooth">bluetooth audio</string>
     <string name="device_wired">wired headphones</string>
     <string name="device_usb">usb-c audio</string>
+
+    <!-- Audio Routing & Auto-Switch -->
+    <string name="routing_title">AUDIO ROUTING</string>
+    <string name="routing_auto_switch">auto-switch</string>
+    <string name="routing_active_output">ACTIVE OUTPUT</string>
+    <string name="routing_saved_outputs">SAVED OUTPUTS</string>
+    <string name="routing_hint">presets automatically switch when output changes</string>
     
     <!-- Top Bar & Main Controls -->
     <string name="btn_new_preset">new</string>
