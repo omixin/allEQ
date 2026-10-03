@@ -43,7 +43,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.text.font.FontWeight
@@ -698,12 +700,18 @@ fun MainScreen(
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                             )
-                            Spacer(modifier = Modifier.width(3.dp))
+                            val chevronRotation by animateFloatAsState(
+                                targetValue = if (showDeviceRoutingMenu) 180f else 0f,
+                                animationSpec = spring(dampingRatio = 0.75f, stiffness = Spring.StiffnessMediumLow),
+                                label = "chevron_rotation",
+                            )
                             Icon(
                                 imageVector = Icons.Default.ArrowDropDown,
                                 contentDescription = null,
                                 tint = colors.textSecondary.copy(alpha = 0.7f),
-                                modifier = Modifier.size(14.dp),
+                                modifier = Modifier
+                                    .size(14.dp)
+                                    .rotate(chevronRotation),
                             )
                         }
                     }
