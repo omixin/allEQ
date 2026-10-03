@@ -49,6 +49,11 @@
     <string name="dialog_unsaved_message">пресет «%1$s» был изменен. сбросить изменения и переключить на «%2$s»?</string>
     <string name="dialog_btn_discard_switch">сбросить и переключить</string>
     <string name="dialog_btn_save_as_new">сохранить как новый</string>
+    <string name="btn_save_inline">сохранить</string>
+    <string name="dialog_overwrite_factory_title">ПЕРЕЗАПИСАТЬ ЗАВОДСКОЙ ПРЕСЕТ</string>
+    <string name="dialog_overwrite_factory_message">Пресет «%1$s» является системным. Перезаписать его настройки? Исходные пресеты всегда можно восстановить в настройках.</string>
+    <string name="dialog_btn_overwrite">перезаписать</string>
+    <string name="toast_preset_saved">Пресет «%1$s» сохранен</string>
     
     <!-- Settings Sheet -->
     <string name="settings_title">SETTINGS</string>

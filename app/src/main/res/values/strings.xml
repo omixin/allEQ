@@ -56,6 +56,11 @@
     <string name="dialog_unsaved_message">Preset \"%1$s\" was modified. Discard changes and switch to \"%2$s\"?</string>
     <string name="dialog_btn_discard_switch">discard &amp; switch</string>
     <string name="dialog_btn_save_as_new">save as new</string>
+    <string name="btn_save_inline">save</string>
+    <string name="dialog_overwrite_factory_title">OVERWRITE FACTORY PRESET</string>
+    <string name="dialog_overwrite_factory_message">Preset \"%1$s\" is a built-in factory preset. Overwrite it? You can restore original presets at any time in Settings.</string>
+    <string name="dialog_btn_overwrite">overwrite</string>
+    <string name="toast_preset_saved">Preset \"%1$s\" saved</string>
     
     <!-- Settings Sheet -->
     <string name="settings_title">SETTINGS</string>

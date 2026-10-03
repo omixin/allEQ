@@ -54,6 +54,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.text.style.TextOverflow
@@ -466,6 +467,9 @@ fun MainScreen(
     var newPresetName by remember { mutableStateOf("") }
     var presetToDelete by remember { mutableStateOf<String?>(null) }
     var pendingPresetSwitch by remember { mutableStateOf<String?>(null) }
+    var showOverwriteFactoryDialog by remember { mutableStateOf(false) }
+
+    val context = LocalContext.current
 
     val currentPresetObj = remember(activePresetName, allPresets) {
         allPresets.firstOrNull { it.name.equals(activePresetName, ignoreCase = true) }
@@ -918,6 +922,19 @@ fun MainScreen(
                 bandGains = bandGains,
                 onBandGainChanged = onBandChanged,
                 isModified = isCurrentPresetModified,
+                onSavePreset = {
+                    val currentPreset = currentPresetObj
+                    if (currentPreset != null && !currentPreset.isCustom) {
+                        showOverwriteFactoryDialog = true
+                    } else {
+                        onSaveCustomPreset(activePresetName)
+                        Toast.makeText(
+                            context,
+                            context.getString(R.string.toast_preset_saved, activePresetName),
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                },
                 modifier = Modifier.fillMaxWidth()
             )
 
@@ -1329,6 +1346,84 @@ fun MainScreen(
                     }
                 },
                 containerColor = colors.cardBg
+            )
+        }
+
+        if (showOverwriteFactoryDialog) {
+            AlertDialog(
+                onDismissRequest = { showOverwriteFactoryDialog = false },
+                containerColor = colors.cardBg,
+                shape = RoundedCornerShape(20.dp),
+                title = {
+                    Text(
+                        text = androidx.compose.ui.res.stringResource(com.omix.alleq.R.string.dialog_overwrite_factory_title),
+                        fontFamily = BenzinFontFamily,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = colors.accent,
+                        letterSpacing = 0.5.sp
+                    )
+                },
+                text = {
+                    Text(
+                        text = androidx.compose.ui.res.stringResource(com.omix.alleq.R.string.dialog_overwrite_factory_message, activePresetName),
+                        fontFamily = WixFontFamily,
+                        fontSize = 13.sp,
+                        color = colors.textSecondary,
+                        lineHeight = 18.sp
+                    )
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            showOverwriteFactoryDialog = false
+                            onSaveCustomPreset(activePresetName)
+                            Toast.makeText(
+                                context,
+                                context.getString(R.string.toast_preset_saved, activePresetName),
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                    ) {
+                        Text(
+                            text = androidx.compose.ui.res.stringResource(com.omix.alleq.R.string.dialog_btn_overwrite).uppercase(),
+                            fontFamily = BenzinFontFamily,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = colors.accent
+                        )
+                    }
+                },
+                dismissButton = {
+                    Row {
+                        TextButton(
+                            onClick = {
+                                showOverwriteFactoryDialog = false
+                                newPresetName = "$activePresetName (Copy)"
+                                showCreateDialog = true
+                            }
+                        ) {
+                            Text(
+                                text = androidx.compose.ui.res.stringResource(com.omix.alleq.R.string.dialog_btn_save_as_new).uppercase(),
+                                fontFamily = BenzinFontFamily,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = colors.textSecondary
+                            )
+                        }
+                        TextButton(
+                            onClick = { showOverwriteFactoryDialog = false }
+                        ) {
+                            Text(
+                                text = androidx.compose.ui.res.stringResource(com.omix.alleq.R.string.dialog_btn_cancel).uppercase(),
+                                fontFamily = BenzinFontFamily,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = colors.textMuted
+                            )
+                        }
+                    }
+                }
             )
         }
 

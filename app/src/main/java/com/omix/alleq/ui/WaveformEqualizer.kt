@@ -22,6 +22,17 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.unit.sp
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkHorizontally
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.res.stringResource
+import com.omix.alleq.R
 import com.omix.alleq.model.EqualizerDefaults
 import com.omix.alleq.ui.theme.LocalEqColors
 
@@ -31,9 +42,11 @@ fun WaveformEqualizerCard(
     bandGains: List<Float>,
     onBandGainChanged: (Int, Float) -> Unit,
     modifier: Modifier = Modifier,
-    isModified: Boolean = false
+    isModified: Boolean = false,
+    onSavePreset: () -> Unit = {}
 ) {
     val colors = LocalEqColors.current
+    val haptic = LocalHapticFeedback.current
 
     Card(
         shape = RoundedCornerShape(24.dp),
@@ -51,7 +64,7 @@ fun WaveformEqualizerCard(
                 modifier = Modifier
                     .background(colors.accent.copy(alpha = 0.12f), RoundedCornerShape(50))
                     .border(1.dp, colors.accent.copy(alpha = 0.3f), RoundedCornerShape(50))
-                    .padding(horizontal = 14.dp, vertical = 6.dp)
+                    .padding(horizontal = 12.dp, vertical = 5.dp)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
@@ -62,21 +75,48 @@ fun WaveformEqualizerCard(
                         letterSpacing = 0.5.sp,
                         color = colors.accent
                     )
-                    if (isModified) {
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Box(
-                            modifier = Modifier
-                                .size(6.dp)
-                                .background(Color(0xFFFF9800), CircleShape)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = androidx.compose.ui.res.stringResource(com.omix.alleq.R.string.preset_unsaved),
-                            fontFamily = com.omix.alleq.ui.theme.WixFontFamily,
-                            fontSize = 9.5.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFFFF9800)
-                        )
+                    AnimatedVisibility(
+                        visible = isModified,
+                        enter = fadeIn() + expandHorizontally(),
+                        exit = fadeOut() + shrinkHorizontally()
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Box(
+                                modifier = Modifier
+                                    .width(1.dp)
+                                    .height(10.dp)
+                                    .background(colors.accent.copy(alpha = 0.35f))
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Row(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(50))
+                                    .background(Color(0xFFFF9800).copy(alpha = 0.16f))
+                                    .border(0.75.dp, Color(0xFFFF9800).copy(alpha = 0.45f), RoundedCornerShape(50))
+                                    .clickable {
+                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                        onSavePreset()
+                                    }
+                                    .padding(horizontal = 7.dp, vertical = 2.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(5.dp)
+                                        .background(Color(0xFFFF9800), CircleShape)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = stringResource(R.string.btn_save_inline).uppercase(),
+                                    fontFamily = com.omix.alleq.ui.theme.BenzinFontFamily,
+                                    fontSize = 8.5.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    letterSpacing = 0.5.sp,
+                                    color = Color(0xFFFF9800)
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -95,8 +135,6 @@ fun WaveformEqualizerCard(
                     localBandGains = bandGains
                 }
             }
-
-            val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
