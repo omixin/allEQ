@@ -74,6 +74,10 @@ import com.omix.alleq.ui.SettingsSheet
 import com.omix.alleq.ui.TactileCapsuleFader
 import com.omix.alleq.ui.TutorialDialog
 import com.omix.alleq.ui.WaveformEqualizerCard
+import com.omix.alleq.ui.AllEqButtonVariant
+import com.omix.alleq.ui.AllEqCustomDialog
+import com.omix.alleq.ui.AllEqDialogButton
+import com.omix.alleq.ui.AllEqDialogTextField
 import com.omix.alleq.ui.theme.AccentTheme
 import com.omix.alleq.ui.theme.BenzinFontFamily
 import com.omix.alleq.ui.theme.LocalEqColors
@@ -1179,247 +1183,220 @@ fun MainScreen(
         }
 
         if (showCreateDialog) {
-            AlertDialog(
+            AllEqCustomDialog(
                 onDismissRequest = { showCreateDialog = false },
-                title = {
+                icon = Icons.Default.BookmarkBorder,
+                iconTint = colors.accent,
+                title = androidx.compose.ui.res.stringResource(com.omix.alleq.R.string.dialog_save_preset_title),
+                content = {
                     Text(
-                        text = "SAVE PRESET",
-                        fontFamily = BenzinFontFamily,
-                        fontSize = 15.sp,
-                        color = colors.textPrimary,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 0.5.sp
+                        text = androidx.compose.ui.res.stringResource(com.omix.alleq.R.string.dialog_preset_name_label),
+                        fontFamily = WixFontFamily,
+                        fontSize = 12.sp,
+                        color = colors.textSecondary,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 8.dp)
                     )
-                },
-                text = {
-                    OutlinedTextField(
+                    AllEqDialogTextField(
                         value = newPresetName,
                         onValueChange = { newPresetName = it },
-                        label = { Text(androidx.compose.ui.res.stringResource(com.omix.alleq.R.string.dialog_preset_name_label), fontFamily = WixFontFamily) },
-                        singleLine = true,
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = colors.textPrimary,
-                            unfocusedTextColor = colors.textPrimary,
-                            focusedBorderColor = colors.accent,
-                            unfocusedBorderColor = colors.cardBorder,
-                            focusedLabelColor = colors.accent,
-                            unfocusedLabelColor = colors.textSecondary
-                        )
-                    )
-                },
-                confirmButton = {
-                    TextButton(
-                        onClick = {
+                        placeholder = "Preset name",
+                        onDone = {
                             if (newPresetName.isNotBlank()) {
                                 onSaveCustomPreset(newPresetName)
                                 showCreateDialog = false
                             }
                         }
+                    )
+                },
+                buttons = {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        Text(
-                            text = androidx.compose.ui.res.stringResource(com.omix.alleq.R.string.dialog_btn_save),
-                            fontFamily = WixFontFamily,
-                            fontWeight = FontWeight.Bold,
-                            color = colors.textPrimary
-                        )
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = { showCreateDialog = false }) {
-                        Text(
+                        AllEqDialogButton(
+                            onClick = { showCreateDialog = false },
                             text = androidx.compose.ui.res.stringResource(com.omix.alleq.R.string.dialog_btn_cancel),
-                            fontFamily = WixFontFamily,
-                            color = colors.textSecondary
+                            variant = AllEqButtonVariant.SECONDARY,
+                            modifier = Modifier.weight(1f)
+                        )
+                        AllEqDialogButton(
+                            onClick = {
+                                if (newPresetName.isNotBlank()) {
+                                    onSaveCustomPreset(newPresetName)
+                                    showCreateDialog = false
+                                }
+                            },
+                            text = androidx.compose.ui.res.stringResource(com.omix.alleq.R.string.dialog_btn_save),
+                            variant = AllEqButtonVariant.PRIMARY,
+                            enabled = newPresetName.isNotBlank(),
+                            modifier = Modifier.weight(1f)
                         )
                     }
-                },
-                containerColor = colors.cardBg
+                }
             )
         }
 
         presetToDelete?.let { name ->
-            AlertDialog(
+            AllEqCustomDialog(
                 onDismissRequest = { presetToDelete = null },
-                title = {
-                    Text(
-                        text = "DELETE PRESET",
-                        fontFamily = BenzinFontFamily,
-                        fontSize = 15.sp,
-                        color = colors.textPrimary,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 0.5.sp
-                    )
-                },
-                text = {
+                icon = Icons.Default.DeleteOutline,
+                iconTint = Color(0xFFFF5252),
+                title = androidx.compose.ui.res.stringResource(com.omix.alleq.R.string.dialog_delete_preset_title),
+                content = {
                     Text(
                         text = androidx.compose.ui.res.stringResource(com.omix.alleq.R.string.dialog_delete_preset_confirm, name),
                         fontFamily = WixFontFamily,
-                        color = colors.textSecondary
+                        fontSize = 13.sp,
+                        color = colors.textSecondary,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                        lineHeight = 18.sp,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 4.dp)
                     )
                 },
-                confirmButton = {
-                    TextButton(
-                        onClick = {
-                            onDeleteCustomPreset(name)
-                            presetToDelete = null
-                        }
+                buttons = {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        Text(
-                            text = androidx.compose.ui.res.stringResource(com.omix.alleq.R.string.dialog_btn_delete),
-                            fontFamily = WixFontFamily,
-                            color = Color(0xFFFF5252),
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = { presetToDelete = null }) {
-                        Text(
+                        AllEqDialogButton(
+                            onClick = { presetToDelete = null },
                             text = androidx.compose.ui.res.stringResource(com.omix.alleq.R.string.dialog_btn_cancel),
-                            fontFamily = WixFontFamily,
-                            color = colors.textSecondary
+                            variant = AllEqButtonVariant.SECONDARY,
+                            modifier = Modifier.weight(1f)
+                        )
+                        AllEqDialogButton(
+                            onClick = {
+                                onDeleteCustomPreset(name)
+                                presetToDelete = null
+                            },
+                            text = androidx.compose.ui.res.stringResource(com.omix.alleq.R.string.dialog_btn_delete),
+                            variant = AllEqButtonVariant.DESTRUCTIVE,
+                            modifier = Modifier.weight(1f)
                         )
                     }
-                },
-                containerColor = colors.cardBg
+                }
             )
         }
 
         pendingPresetSwitch?.let { targetPreset ->
-            AlertDialog(
+            AllEqCustomDialog(
                 onDismissRequest = { pendingPresetSwitch = null },
-                title = {
-                    Text(
-                        text = "UNSAVED PRESET",
-                        fontFamily = BenzinFontFamily,
-                        fontSize = 15.sp,
-                        color = colors.textPrimary,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 0.5.sp
-                    )
-                },
-                text = {
+                icon = Icons.Default.WarningAmber,
+                iconTint = colors.accent,
+                title = androidx.compose.ui.res.stringResource(com.omix.alleq.R.string.dialog_unsaved_title),
+                content = {
                     Text(
                         text = androidx.compose.ui.res.stringResource(com.omix.alleq.R.string.dialog_unsaved_message, activePresetName, targetPreset),
                         fontFamily = WixFontFamily,
                         fontSize = 13.sp,
-                        color = colors.textSecondary
+                        color = colors.textSecondary,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                        lineHeight = 18.sp,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 4.dp)
                     )
                 },
-                confirmButton = {
-                    TextButton(
-                        onClick = {
-                            onSelectPreset(targetPreset)
-                            pendingPresetSwitch = null
-                        }
+                buttons = {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Text(
-                            text = androidx.compose.ui.res.stringResource(com.omix.alleq.R.string.dialog_btn_discard_switch),
-                            fontFamily = WixFontFamily,
-                            color = Color(0xFFFF5252),
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                },
-                dismissButton = {
-                    Row {
-                        TextButton(
+                        AllEqDialogButton(
                             onClick = {
+                                onSelectPreset(targetPreset)
                                 pendingPresetSwitch = null
-                                showCreateDialog = true
-                            }
+                            },
+                            text = androidx.compose.ui.res.stringResource(com.omix.alleq.R.string.dialog_btn_discard_switch),
+                            variant = AllEqButtonVariant.DESTRUCTIVE,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Text(
-                                text = androidx.compose.ui.res.stringResource(com.omix.alleq.R.string.dialog_btn_save_as_new),
-                                fontFamily = WixFontFamily,
-                                color = colors.accent,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                        TextButton(onClick = { pendingPresetSwitch = null }) {
-                            Text(
+                            AllEqDialogButton(
+                                onClick = { pendingPresetSwitch = null },
                                 text = androidx.compose.ui.res.stringResource(com.omix.alleq.R.string.dialog_btn_cancel),
-                                fontFamily = WixFontFamily,
-                                color = colors.textSecondary
+                                variant = AllEqButtonVariant.GHOST,
+                                modifier = Modifier.weight(1f)
+                            )
+                            AllEqDialogButton(
+                                onClick = {
+                                    pendingPresetSwitch = null
+                                    showCreateDialog = true
+                                },
+                                text = androidx.compose.ui.res.stringResource(com.omix.alleq.R.string.dialog_btn_save_as_new),
+                                variant = AllEqButtonVariant.SECONDARY,
+                                modifier = Modifier.weight(1.3f)
                             )
                         }
                     }
-                },
-                containerColor = colors.cardBg
+                }
             )
         }
 
         if (showOverwriteFactoryDialog) {
-            AlertDialog(
+            AllEqCustomDialog(
                 onDismissRequest = { showOverwriteFactoryDialog = false },
-                containerColor = colors.cardBg,
-                shape = RoundedCornerShape(20.dp),
-                title = {
-                    Text(
-                        text = androidx.compose.ui.res.stringResource(com.omix.alleq.R.string.dialog_overwrite_factory_title),
-                        fontFamily = BenzinFontFamily,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = colors.accent,
-                        letterSpacing = 0.5.sp
-                    )
-                },
-                text = {
+                icon = Icons.Default.Layers,
+                iconTint = colors.accent,
+                title = androidx.compose.ui.res.stringResource(com.omix.alleq.R.string.dialog_overwrite_factory_title),
+                content = {
                     Text(
                         text = androidx.compose.ui.res.stringResource(com.omix.alleq.R.string.dialog_overwrite_factory_message, activePresetName),
                         fontFamily = WixFontFamily,
                         fontSize = 13.sp,
                         color = colors.textSecondary,
-                        lineHeight = 18.sp
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                        lineHeight = 18.sp,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 4.dp)
                     )
                 },
-                confirmButton = {
-                    TextButton(
-                        onClick = {
-                            showOverwriteFactoryDialog = false
-                            onSaveCustomPreset(activePresetName)
-                            Toast.makeText(
-                                context,
-                                context.getString(R.string.toast_preset_saved, activePresetName),
-                                Toast.LENGTH_SHORT
-                            ).show()
-                        }
+                buttons = {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Text(
-                            text = androidx.compose.ui.res.stringResource(com.omix.alleq.R.string.dialog_btn_overwrite).uppercase(),
-                            fontFamily = BenzinFontFamily,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = colors.accent
-                        )
-                    }
-                },
-                dismissButton = {
-                    Row {
-                        TextButton(
+                        AllEqDialogButton(
                             onClick = {
                                 showOverwriteFactoryDialog = false
-                                newPresetName = "$activePresetName (Copy)"
-                                showCreateDialog = true
-                            }
+                                onSaveCustomPreset(activePresetName)
+                                Toast.makeText(
+                                    context,
+                                    context.getString(R.string.toast_preset_saved, activePresetName),
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            },
+                            text = androidx.compose.ui.res.stringResource(com.omix.alleq.R.string.dialog_btn_overwrite),
+                            variant = AllEqButtonVariant.PRIMARY,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Text(
-                                text = androidx.compose.ui.res.stringResource(com.omix.alleq.R.string.dialog_btn_save_as_new).uppercase(),
-                                fontFamily = BenzinFontFamily,
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = colors.textSecondary
+                            AllEqDialogButton(
+                                onClick = { showOverwriteFactoryDialog = false },
+                                text = androidx.compose.ui.res.stringResource(com.omix.alleq.R.string.dialog_btn_cancel),
+                                variant = AllEqButtonVariant.GHOST,
+                                modifier = Modifier.weight(1f)
                             )
-                        }
-                        TextButton(
-                            onClick = { showOverwriteFactoryDialog = false }
-                        ) {
-                            Text(
-                                text = androidx.compose.ui.res.stringResource(com.omix.alleq.R.string.dialog_btn_cancel).uppercase(),
-                                fontFamily = BenzinFontFamily,
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = colors.textMuted
+                            AllEqDialogButton(
+                                onClick = {
+                                    showOverwriteFactoryDialog = false
+                                    newPresetName = "$activePresetName (Copy)"
+                                    showCreateDialog = true
+                                },
+                                text = androidx.compose.ui.res.stringResource(com.omix.alleq.R.string.dialog_btn_save_as_new),
+                                variant = AllEqButtonVariant.SECONDARY,
+                                modifier = Modifier.weight(1.3f)
                             )
                         }
                     }
@@ -1430,32 +1407,63 @@ fun MainScreen(
         pendingImportPresets?.let { importList ->
             if (importList.size == 1) {
                 val preset = importList.first()
-                AlertDialog(
+                AllEqCustomDialog(
                     onDismissRequest = onDismissImportDialog,
-                    title = {
-                        Text(
-                            text = androidx.compose.ui.res.stringResource(com.omix.alleq.R.string.dialog_import_preset_title),
-                            fontFamily = BenzinFontFamily,
-                            fontSize = 15.sp,
-                            color = colors.textPrimary,
-                            fontWeight = FontWeight.Bold,
-                            letterSpacing = 0.5.sp
-                        )
-                    },
-                    text = {
-                        Column {
+                    icon = Icons.Default.FileDownload,
+                    iconTint = colors.accent,
+                    title = androidx.compose.ui.res.stringResource(com.omix.alleq.R.string.dialog_import_preset_title),
+                    content = {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(colors.surfaceElevated)
+                                .border(1.dp, colors.cardBorder, RoundedCornerShape(12.dp))
+                                .padding(14.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = preset.name,
+                                    fontFamily = BenzinFontFamily,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = colors.textPrimary,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.weight(1f, fill = false)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(6.dp))
+                                        .background(colors.accent.copy(alpha = 0.15f))
+                                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                                ) {
+                                    Text(
+                                        text = if (preset.preAmpDb > 0) "+${preset.preAmpDb} dB" else "${preset.preAmpDb} dB",
+                                        fontFamily = WixFontFamily,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = colors.accent
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(10.dp))
+
                             Text(
-                                text = androidx.compose.ui.res.stringResource(
-                                    com.omix.alleq.R.string.dialog_import_preset_desc,
-                                    preset.name,
-                                    if (preset.preAmpDb > 0) "+${preset.preAmpDb}" else "${preset.preAmpDb}",
-                                    preset.bassBoostPercent.toInt()
-                                ),
+                                text = "BASS BOOST: ${preset.bassBoostPercent.toInt()}%",
                                 fontFamily = WixFontFamily,
-                                fontSize = 13.sp,
+                                fontSize = 11.sp,
                                 color = colors.textSecondary
                             )
-                            Spacer(modifier = Modifier.height(10.dp))
+
+                            Spacer(modifier = Modifier.height(6.dp))
+
                             Text(
                                 text = "Bands: " + preset.bandGains.joinToString(" / ") { "${it.toInt()}dB" },
                                 fontFamily = WixFontFamily,
@@ -1464,60 +1472,50 @@ fun MainScreen(
                             )
                         }
                     },
-                    confirmButton = {
-                        TextButton(
-                            onClick = {
-                                onImportSinglePreset(preset, true)
-                                onDismissImportDialog()
-                            }
+                    buttons = {
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Text(
-                                text = androidx.compose.ui.res.stringResource(com.omix.alleq.R.string.dialog_btn_import_and_apply),
-                                fontFamily = WixFontFamily,
-                                color = colors.accent,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    },
-                    dismissButton = {
-                        Row {
-                            TextButton(
+                            AllEqDialogButton(
                                 onClick = {
-                                    onImportSinglePreset(preset, false)
+                                    onImportSinglePreset(preset, true)
                                     onDismissImportDialog()
-                                }
+                                },
+                                text = androidx.compose.ui.res.stringResource(com.omix.alleq.R.string.dialog_btn_import_and_apply),
+                                variant = AllEqButtonVariant.PRIMARY,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                Text(
-                                    text = androidx.compose.ui.res.stringResource(com.omix.alleq.R.string.dialog_btn_import_save_only),
-                                    fontFamily = WixFontFamily,
-                                    color = colors.textPrimary
-                                )
-                            }
-                            TextButton(onClick = onDismissImportDialog) {
-                                Text(
+                                AllEqDialogButton(
+                                    onClick = onDismissImportDialog,
                                     text = androidx.compose.ui.res.stringResource(com.omix.alleq.R.string.dialog_btn_cancel),
-                                    fontFamily = WixFontFamily,
-                                    color = colors.textSecondary
+                                    variant = AllEqButtonVariant.GHOST,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                AllEqDialogButton(
+                                    onClick = {
+                                        onImportSinglePreset(preset, false)
+                                        onDismissImportDialog()
+                                    },
+                                    text = androidx.compose.ui.res.stringResource(com.omix.alleq.R.string.dialog_btn_import_save_only),
+                                    variant = AllEqButtonVariant.SECONDARY,
+                                    modifier = Modifier.weight(1.3f)
                                 )
                             }
                         }
-                    },
-                    containerColor = colors.cardBg
+                    }
                 )
             } else if (importList.size > 1) {
-                AlertDialog(
+                AllEqCustomDialog(
                     onDismissRequest = onDismissImportDialog,
-                    title = {
-                        Text(
-                            text = androidx.compose.ui.res.stringResource(com.omix.alleq.R.string.dialog_import_pack_title),
-                            fontFamily = BenzinFontFamily,
-                            fontSize = 15.sp,
-                            color = colors.textPrimary,
-                            fontWeight = FontWeight.Bold,
-                            letterSpacing = 0.5.sp
-                        )
-                    },
-                    text = {
+                    icon = Icons.Default.FolderZip,
+                    iconTint = colors.accent,
+                    title = androidx.compose.ui.res.stringResource(com.omix.alleq.R.string.dialog_import_pack_title),
+                    content = {
                         val namesList = importList.take(6).joinToString(", ") { it.name } + if (importList.size > 6) "..." else ""
                         Text(
                             text = androidx.compose.ui.res.stringResource(
@@ -1527,34 +1525,36 @@ fun MainScreen(
                             ),
                             fontFamily = WixFontFamily,
                             fontSize = 13.sp,
-                            color = colors.textSecondary
+                            color = colors.textSecondary,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                            lineHeight = 18.sp,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 4.dp)
                         )
                     },
-                    confirmButton = {
-                        TextButton(
-                            onClick = {
-                                onImportPresetsPack(importList)
-                                onDismissImportDialog()
-                            }
+                    buttons = {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            Text(
-                                text = androidx.compose.ui.res.stringResource(com.omix.alleq.R.string.dialog_btn_import_all),
-                                fontFamily = WixFontFamily,
-                                color = colors.accent,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    },
-                    dismissButton = {
-                        TextButton(onClick = onDismissImportDialog) {
-                            Text(
+                            AllEqDialogButton(
+                                onClick = onDismissImportDialog,
                                 text = androidx.compose.ui.res.stringResource(com.omix.alleq.R.string.dialog_btn_cancel),
-                                fontFamily = WixFontFamily,
-                                color = colors.textSecondary
+                                variant = AllEqButtonVariant.SECONDARY,
+                                modifier = Modifier.weight(1f)
+                            )
+                            AllEqDialogButton(
+                                onClick = {
+                                    onImportPresetsPack(importList)
+                                    onDismissImportDialog()
+                                },
+                                text = androidx.compose.ui.res.stringResource(com.omix.alleq.R.string.dialog_btn_import_all),
+                                variant = AllEqButtonVariant.PRIMARY,
+                                modifier = Modifier.weight(1f)
                             )
                         }
-                    },
-                    containerColor = colors.cardBg
+                    }
                 )
             }
         }
