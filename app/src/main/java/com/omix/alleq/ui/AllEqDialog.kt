@@ -232,11 +232,10 @@ fun AllEqDialogButton(
                 Spacer(modifier = Modifier.width(6.dp))
             }
             Text(
-                text = text.uppercase(),
-                fontFamily = BenzinFontFamily,
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Bold,
-                letterSpacing = 0.5.sp,
+                text = text,
+                fontFamily = WixFontFamily,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
                 color = if (enabled) contentColor else contentColor.copy(alpha = 0.4f),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
