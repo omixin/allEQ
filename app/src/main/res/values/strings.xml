@@ -179,4 +179,12 @@
     <string name="toast_preset_pack_imported">%1$d presets imported!</string>
     <string name="toast_import_failed">Failed to read .alleq preset file</string>
     <string name="share_preset_chooser_title">Share allEQ Preset</string>
+    
+    <!-- AppWidgets -->
+    <string name="widget_2x1_name">allEQ Mini (2x1)</string>
+    <string name="widget_2x1_desc">Compact equalizer power switch, active device, and preset launcher</string>
+    <string name="widget_2x2_name">allEQ Console (2x2)</string>
+    <string name="widget_2x2_desc">Square audio console with power dial, active routing, and preset selector</string>
+    <string name="widget_4x1_name">allEQ Bar (4x1)</string>
+    <string name="widget_4x1_desc">Wide audio bar with power toggle, device routing, and quick preset switcher</string>
 </resources>

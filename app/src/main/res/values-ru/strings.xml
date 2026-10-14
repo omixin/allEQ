@@ -172,4 +172,12 @@
     <string name="toast_preset_pack_imported">Импортировано пресетов: %1$d шт.!</string>
     <string name="toast_import_failed">Не удалось прочитать файл .alleq</string>
     <string name="share_preset_chooser_title">Поделиться пресетом allEQ</string>
+    
+    <!-- AppWidgets -->
+    <string name="widget_2x1_name">allEQ Мини (2x1)</string>
+    <string name="widget_2x1_desc">Компактный переключатель питания, активное устройство и выбор пресета</string>
+    <string name="widget_2x2_name">allEQ Консоль (2x2)</string>
+    <string name="widget_2x2_desc">Квадратная аудио-консоль с кнопкой питания, статусом и сменой пресета</string>
+    <string name="widget_4x1_name">allEQ Панель (4x1)</string>
+    <string name="widget_4x1_desc">Широкая панель с кнопкой питания, роутингом и быстрым переключением пресетов</string>
 </resources>

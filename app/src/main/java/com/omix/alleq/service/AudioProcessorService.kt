@@ -30,6 +30,7 @@ import com.omix.alleq.model.DevicePresetBinding
 import com.omix.alleq.model.EqualizerDefaults
 import com.omix.alleq.model.EqualizerPreset
 import com.omix.alleq.telemetry.TelemetryManager
+import com.omix.alleq.widget.AllEqWidgetManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -69,7 +70,11 @@ class AudioProcessorService : Service() {
         const val ACTION_START = "com.omix.alleq.ACTION_START"
         const val ACTION_STOP = "com.omix.alleq.ACTION_STOP"
         const val ACTION_TOGGLE = "com.omix.alleq.ACTION_TOGGLE"
+        const val ACTION_PREV_PRESET = "com.omix.alleq.ACTION_PREV_PRESET"
+        const val ACTION_NEXT_PRESET = "com.omix.alleq.ACTION_NEXT_PRESET"
+        const val ACTION_APPLY_PRESET = "com.omix.alleq.ACTION_APPLY_PRESET"
         const val EXTRA_FORCE_ENABLE = "com.omix.alleq.EXTRA_FORCE_ENABLE"
+        const val EXTRA_PRESET_NAME = "com.omix.alleq.EXTRA_PRESET_NAME"
 
         @Volatile
         var isServiceRunning: Boolean = false
@@ -166,6 +171,18 @@ class AudioProcessorService : Service() {
             ACTION_TOGGLE -> {
                 toggleEnabled()
             }
+            ACTION_PREV_PRESET -> {
+                cyclePreset(-1)
+            }
+            ACTION_NEXT_PRESET -> {
+                cyclePreset(1)
+            }
+            ACTION_APPLY_PRESET -> {
+                val target = intent.getStringExtra(EXTRA_PRESET_NAME)
+                if (!target.isNullOrBlank()) {
+                    applyPreset(target, isAutoSwitch = false)
+                }
+            }
             ACTION_START -> {
                 if (intent.getBooleanExtra(EXTRA_FORCE_ENABLE, false) && !_isEnabled.value) {
                     setEnabled(true)
@@ -179,6 +196,14 @@ class AudioProcessorService : Service() {
         }
         updateNotification()
         return START_STICKY
+    }
+
+    fun cyclePreset(direction: Int) {
+        val list = _allPresets.value
+        if (list.isEmpty()) return
+        val currentIndex = list.indexOfFirst { it.name.equals(_activePresetName.value, ignoreCase = true) }
+        val nextIndex = if (currentIndex < 0) 0 else (currentIndex + direction + list.size) % list.size
+        applyPreset(list[nextIndex].name, isAutoSwitch = false)
     }
 
     override fun onBind(intent: Intent?): IBinder = binder
@@ -229,6 +254,8 @@ class AudioProcessorService : Service() {
     private fun updateNotification() {
         val manager = getSystemService(NotificationManager::class.java)
         manager.notify(NOTIFICATION_ID, buildNotification())
+        AllEqTileService.requestUpdate(this)
+        AllEqWidgetManager.updateWidgets(this)
     }
 
     private fun detectActiveOutputDevice(dev: AudioDeviceInfo?): Triple<String, String, AudioDeviceType> {
@@ -720,6 +747,7 @@ class AudioProcessorService : Service() {
             .putBoolean("dynamic_bass_enabled", _dynamicBassEnabled.value)
             .putFloat("dynamic_bass_strength", _dynamicBassStrength.value)
             .putBoolean("auto_device_preset_enabled", _autoDevicePresetEnabled.value)
+            .putString("device_name", _currentAudioDevice.value)
             .putString("device_bindings_json", EqualizerDefaults.deviceBindingsToJson(_knownDeviceBindings.value))
             .apply()
     }

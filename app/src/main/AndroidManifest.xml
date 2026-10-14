@@ -109,6 +109,53 @@
                 <data android:mimeType="*/*" />
             </intent-filter>
         </activity>
+
+        <!-- Floating 3D Preset Picker Dialog for Home Screen Widgets -->
+        <activity
+            android:name=".ui.FloatingPresetActivity"
+            android:exported="true"
+            android:theme="@style/Theme.AllEq.FloatingDialog"
+            android:excludeFromRecents="true"
+            android:launchMode="singleInstance" />
+
+        <!-- 2x1 Mini Widget -->
+        <receiver
+            android:name=".widget.AllEqWidgetProvider2x1"
+            android:exported="true"
+            android:label="@string/widget_2x1_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_2x1_info" />
+        </receiver>
+
+        <!-- 2x2 Square Console Widget -->
+        <receiver
+            android:name=".widget.AllEqWidgetProvider2x2"
+            android:exported="true"
+            android:label="@string/widget_2x2_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_2x2_info" />
+        </receiver>
+
+        <!-- 4x1 Wide Bar Widget -->
+        <receiver
+            android:name=".widget.AllEqWidgetProvider4x1"
+            android:exported="true"
+            android:label="@string/widget_4x1_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_4x1_info" />
+        </receiver>
     </application>
 
 </manifest>

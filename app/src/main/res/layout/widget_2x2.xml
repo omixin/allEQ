@@ -1,0 +1,173 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/widget_card_bg_large"
+    android:orientation="vertical"
+    android:padding="14dp">
+
+    <!-- Header: App Brand + Output Device -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <ImageView
+            android:layout_width="16dp"
+            android:layout_height="16dp"
+            android:src="@drawable/ic_qs_alleq"
+            android:contentDescription="allEQ" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="6dp"
+            android:text="allEQ"
+            android:textColor="#FFFFFF"
+            android:textSize="12sp"
+            android:fontFamily="sans-serif-black" />
+
+        <FrameLayout
+            android:layout_width="0dp"
+            android:layout_height="1dp"
+            android:layout_weight="1" />
+
+        <!-- Output Device Badge -->
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="22dp"
+            android:background="@drawable/widget_device_capsule_bg"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:paddingStart="6dp"
+            android:paddingEnd="6dp">
+
+            <ImageView
+                android:id="@+id/widget_device_icon"
+                android:layout_width="11dp"
+                android:layout_height="11dp"
+                android:src="@drawable/ic_widget_speaker"
+                android:contentDescription="Device" />
+
+            <TextView
+                android:id="@+id/widget_device_name"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="4dp"
+                android:text="SPEAKER"
+                android:textColor="#AAAAAA"
+                android:textSize="9.5sp"
+                android:fontFamily="sans-serif-medium"
+                android:textAllCaps="true"
+                android:singleLine="true"
+                android:ellipsize="end" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- Center: Power Button & Status -->
+    <LinearLayout
+        android:id="@+id/widget_btn_power"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:orientation="vertical"
+        android:gravity="center">
+
+        <FrameLayout
+            android:id="@+id/widget_power_ring"
+            android:layout_width="50dp"
+            android:layout_height="50dp"
+            android:background="@drawable/widget_power_bg_on">
+
+            <ImageView
+                android:id="@+id/widget_power_icon"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:layout_gravity="center"
+                android:src="@drawable/ic_widget_power"
+                android:contentDescription="Power" />
+        </FrameLayout>
+
+        <TextView
+            android:id="@+id/widget_status_text"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="5dp"
+            android:text="DSP ACTIVE"
+            android:textColor="#4CAF50"
+            android:textSize="10sp"
+            android:fontFamily="sans-serif-bold"
+            android:textAllCaps="true" />
+    </LinearLayout>
+
+    <!-- Bottom: Preset Capsule + Change Button -->
+    <LinearLayout
+        android:id="@+id/widget_btn_preset"
+        android:layout_width="match_parent"
+        android:layout_height="36dp"
+        android:background="@drawable/widget_preset_capsule_bg"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingStart="10dp"
+        android:paddingEnd="8dp">
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="PRESET"
+                android:textColor="#666666"
+                android:textSize="8.5sp"
+                android:fontFamily="sans-serif-medium"
+                android:textAllCaps="true" />
+
+            <TextView
+                android:id="@+id/widget_preset_name"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="FLAT"
+                android:textColor="#FFFFFF"
+                android:textSize="12sp"
+                android:fontFamily="sans-serif-black"
+                android:textAllCaps="true"
+                android:singleLine="true"
+                android:ellipsize="end" />
+        </LinearLayout>
+
+        <!-- Change Action Button -->
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="24dp"
+            android:background="@drawable/widget_device_capsule_bg"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:paddingStart="7dp"
+            android:paddingEnd="7dp">
+
+            <ImageView
+                android:id="@+id/widget_tune_icon"
+                android:layout_width="11dp"
+                android:layout_height="11dp"
+                android:src="@drawable/ic_widget_tune"
+                android:contentDescription="Change" />
+
+            <TextView
+                android:id="@+id/widget_change_text"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="4dp"
+                android:text="CHANGE"
+                android:textColor="#4CAF50"
+                android:textSize="10sp"
+                android:fontFamily="sans-serif-bold" />
+        </LinearLayout>
+    </LinearLayout>
+
+</LinearLayout>

@@ -462,7 +462,7 @@ private fun DeviceRowItem(
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun PresetPickerWheel(
+fun PresetPickerWheel(
     currentPresetName: String,
     allPresets: List<EqualizerPreset>,
     onSelectPreset: (String, Boolean) -> Unit,
