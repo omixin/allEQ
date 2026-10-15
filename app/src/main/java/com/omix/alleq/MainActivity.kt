@@ -996,7 +996,8 @@ fun MainScreen(
                     onProgressChanged = { newProgress ->
                         val rawDb = newProgress * 24f - 12f
                         val roundedDb = (rawDb * 2).roundToInt() / 2f
-                        onPreAmpChanged(roundedDb)
+                        val finalDb = if (kotlin.math.abs(roundedDb) < 0.4f) 0.0f else roundedDb
+                        onPreAmpChanged(finalDb)
                     },
                     switchEnabled = (preAmpDb != 0f),
                     onSwitchToggle = { enabled ->

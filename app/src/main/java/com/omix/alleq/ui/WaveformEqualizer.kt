@@ -153,7 +153,18 @@ fun WaveformEqualizerCard(
                         fontSize = 10.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = if (gain != 0f) colors.accent else colors.textMuted,
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(4.dp))
+                            .clickable {
+                                if (gain != 0f) {
+                                    AppHaptics.tick(view, context)
+                                    localBandGains = localBandGains.toMutableList().also {
+                                        if (band.index in it.indices) it[band.index] = 0f
+                                    }
+                                    currentOnBandGainChanged(band.index, 0f)
+                                }
+                            },
                         textAlign = TextAlign.Center,
                         maxLines = 1
                     )
@@ -213,17 +224,31 @@ fun WaveformEqualizerCard(
                             fun calculateGain(y: Float): Float {
                                 val relativeY = (y - padding).coerceIn(0f, usableHeight)
                                 val normalized = 1f - (relativeY / usableHeight)
-                                return (normalized * 30f - 15f).coerceIn(-15f, 15f)
+                                val rawGain = (normalized * 30f - 15f).coerceIn(-15f, 15f)
+                                // Magnetic snap: deadzone of +-0.55 dB snaps firmly to 0.0 dB
+                                return if (kotlin.math.abs(rawGain) < 0.55f) 0.0f else rawGain
                             }
 
                             var lastIntGain = snapshotGains.getOrElse(activeBand) { 0f }.toInt()
+                            var wasInZeroSnap = kotlin.math.abs(snapshotGains.getOrElse(activeBand) { 0f }) < 0.05f
+
                             fun applyGain(y: Float) {
                                 val newGain = calculateGain(y)
+                                val isNowZero = newGain == 0.0f
                                 val currentInt = kotlin.math.round(newGain).toInt()
-                                if (currentInt != lastIntGain) {
+
+                                if (isNowZero && !wasInZeroSnap) {
+                                    // Tactile detent tick when snapping into center 0 dB notch
+                                    AppHaptics.tick(view, context)
+                                    wasInZeroSnap = true
+                                    lastIntGain = 0
+                                } else if (!isNowZero && wasInZeroSnap) {
+                                    wasInZeroSnap = false
+                                } else if (currentInt != lastIntGain) {
                                     AppHaptics.tick(view, context)
                                     lastIntGain = currentInt
                                 }
+
                                 localBandGains = localBandGains.toMutableList().also {
                                     if (activeBand in it.indices) it[activeBand] = newGain
                                 }
@@ -259,6 +284,15 @@ fun WaveformEqualizerCard(
 
                     val curveLineColor = colors.accent
                     val guideColor = if (colors.isDark) Color(0xFF222222) else Color(0xFFE5E7EB)
+
+                    // horizontal 0 dB center guideline
+                    val centerY = padding + 0.5f * usableHeight
+                    drawLine(
+                        color = guideColor,
+                        start = Offset(colWidth / 2f, centerY),
+                        end = Offset(size.width - colWidth / 2f, centerY),
+                        strokeWidth = 1.dp.toPx()
+                    )
 
                     for (i in 0 until bandCount) {
                         val gain = localBandGains.getOrElse(i) { 0f }.coerceIn(-15f, 15f)
