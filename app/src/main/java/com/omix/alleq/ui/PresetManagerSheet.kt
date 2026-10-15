@@ -18,14 +18,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.omix.alleq.model.EqualizerPreset
+import com.omix.alleq.ui.haptics.AppHaptics
 import com.omix.alleq.ui.theme.BenzinFontFamily
 import com.omix.alleq.ui.theme.LocalEqColors
 import com.omix.alleq.ui.theme.WixFontFamily
@@ -46,6 +48,8 @@ fun PresetManagerSheet(
     onImportPresetsFile: () -> Unit = {}
 ) {
     val colors = LocalEqColors.current
+    val context = LocalContext.current
+    val view = LocalView.current
     val haptic = LocalHapticFeedback.current
     val density = LocalDensity.current
     val itemHeightPx = with(density) { 56.dp.toPx() }
@@ -269,7 +273,7 @@ fun PresetManagerSheet(
                                                 onDragStart = {
                                                     draggedIndex = index
                                                     dragAccumulator = 0f
-                                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                    AppHaptics.heavyClick(view, context)
                                                 },
                                                 onDragEnd = {
                                                     draggedIndex = null
@@ -293,7 +297,7 @@ fun PresetManagerSheet(
                                                             mutable.add(target, item)
                                                             draggedIndex = target
                                                             dragAccumulator -= steps * itemHeightPx
-                                                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                                            AppHaptics.tick(view, context)
                                                             currentOnReorder(mutable)
                                                         }
                                                     }

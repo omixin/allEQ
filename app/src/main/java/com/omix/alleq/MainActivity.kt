@@ -56,7 +56,9 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import com.omix.alleq.ui.haptics.AppHaptics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Dispatchers
@@ -509,6 +511,7 @@ fun MainScreen(
     }
 
     val colors = LocalEqColors.current
+    val view = LocalView.current
     val haptic = LocalHapticFeedback.current
     var activeEditingFader by remember { mutableStateOf<String?>(null) }
 
@@ -672,7 +675,7 @@ fun MainScreen(
                         modifier = Modifier
                             .clip(RoundedCornerShape(12.dp))
                             .clickable {
-                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                AppHaptics.click(view, context)
                                 showDeviceRoutingMenu = !showDeviceRoutingMenu
                             }
                             .padding(vertical = 4.dp, horizontal = 8.dp),
@@ -759,7 +762,10 @@ fun MainScreen(
                                 else colors.cardBorder,
                                 CircleShape
                             )
-                            .clickable { onToggleMaster() },
+                            .clickable {
+                                AppHaptics.click(view, context)
+                                onToggleMaster()
+                            },
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
@@ -786,6 +792,7 @@ fun MainScreen(
                         .background(colors.cardBg)
                         .border(1.dp, colors.cardBorder, RoundedCornerShape(50))
                         .clickable {
+                            AppHaptics.click(view, context)
                             newPresetName = "Preset ${customPresets.size + 1}"
                             showCreateDialog = true
                         }
@@ -833,6 +840,7 @@ fun MainScreen(
                             .combinedClickable(
                                 onClick = {
                                     if (!isSelected) {
+                                        AppHaptics.click(view, context)
                                         if (isCurrentPresetModified) {
                                             pendingPresetSwitch = preset.name
                                         } else {
@@ -842,7 +850,7 @@ fun MainScreen(
                                 },
                                 onLongClick = if (preset.isCustom) {
                                     {
-                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        AppHaptics.heavyClick(view, context)
                                         presetToDelete = preset.name
                                     }
                                 } else null
@@ -867,7 +875,7 @@ fun MainScreen(
                                     modifier = Modifier
                                         .size(6.dp)
                                         .background(Color(0xFFFF9800), CircleShape)
-                                )
+                                 )
                             }
                         }
                     }
@@ -889,10 +897,10 @@ fun MainScreen(
                     .pointerInput(Unit) {
                         detectTapGestures(
                             onPress = {
-                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                AppHaptics.heavyClick(view, context)
                                 onSetTemporaryBypass(true)
                                 tryAwaitRelease()
-                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                AppHaptics.click(view, context)
                                 onSetTemporaryBypass(false)
                             }
                         )

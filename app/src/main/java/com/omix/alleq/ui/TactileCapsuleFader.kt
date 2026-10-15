@@ -23,7 +23,10 @@ import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalView
+import com.omix.alleq.ui.haptics.AppHaptics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -49,6 +52,8 @@ fun TactileCapsuleFader(
     hapticSteps: Int = 40
 ) {
     val colors = LocalEqColors.current
+    val context = LocalContext.current
+    val view = LocalView.current
     val haptic = LocalHapticFeedback.current
     var containerHeightPx by remember { mutableFloatStateOf(0f) }
     var containerWidthPx by remember { mutableFloatStateOf(0f) }
@@ -99,7 +104,7 @@ fun TactileCapsuleFader(
                     if (!isEditing) {
                         val up = waitForUpOrCancellation()
                         if (up != null) {
-                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            AppHaptics.heavyClick(view, context)
                             if (!switchEnabled) {
                                 onSwitchToggle(true)
                             }
@@ -114,7 +119,7 @@ fun TactileCapsuleFader(
                                 localProgress = newProg
                                 val step = (newProg * hapticSteps).roundToInt()
                                 if (step != lastEmittedStep) {
-                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    AppHaptics.tick(view, context)
                                     lastEmittedStep = step
                                     onProgressChanged(step.toFloat() / hapticSteps.toFloat())
                                 }
@@ -130,7 +135,7 @@ fun TactileCapsuleFader(
                                     localProgress = newProg
                                     val step = (newProg * hapticSteps).roundToInt()
                                     if (step != lastEmittedStep) {
-                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                        AppHaptics.tick(view, context)
                                         lastEmittedStep = step
                                         onProgressChanged(step.toFloat() / hapticSteps.toFloat())
                                     }
@@ -202,7 +207,7 @@ fun TactileCapsuleFader(
                         .size(44.dp)
                         .clip(CircleShape)
                         .clickable {
-                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            AppHaptics.click(view, context)
                             onSwitchToggle(!switchEnabled)
                         },
                     contentAlignment = Alignment.Center

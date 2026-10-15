@@ -27,7 +27,9 @@ import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -39,6 +41,7 @@ import com.omix.alleq.R
 import com.omix.alleq.model.AudioDeviceType
 import com.omix.alleq.model.DevicePresetBinding
 import com.omix.alleq.model.EqualizerPreset
+import com.omix.alleq.ui.haptics.AppHaptics
 import com.omix.alleq.ui.theme.BenzinFontFamily
 import com.omix.alleq.ui.theme.LocalEqColors
 import com.omix.alleq.ui.theme.WixFontFamily
@@ -63,6 +66,8 @@ fun DeviceRoutingDropdown(
     onSelectDevicePreset: (String, String) -> Unit,
 ) {
     val colors = LocalEqColors.current
+    val context = LocalContext.current
+    val view = LocalView.current
     val haptic = LocalHapticFeedback.current
 
     var isVisible by remember { mutableStateOf(false) }
@@ -205,7 +210,7 @@ fun DeviceRoutingDropdown(
                                     .background(pillBgColor)
                                     .border(1.dp, pillBorderColor, RoundedCornerShape(8.dp))
                                     .clickable {
-                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                        AppHaptics.click(view, context)
                                         onToggleAutoSwitch()
                                     }
                                     .padding(horizontal = 8.dp, vertical = 3.dp),
@@ -375,6 +380,8 @@ private fun DeviceRowItem(
     onPresetClick: () -> Unit,
 ) {
     val colors = LocalEqColors.current
+    val context = LocalContext.current
+    val view = LocalView.current
     val haptic = LocalHapticFeedback.current
 
     val subChevronRotation by animateFloatAsState(
@@ -433,7 +440,7 @@ private fun DeviceRowItem(
                     RoundedCornerShape(8.dp),
                 )
                 .clickable {
-                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    AppHaptics.click(view, context)
                     onPresetClick()
                 }
                 .padding(horizontal = 8.dp, vertical = 4.dp),
@@ -468,6 +475,8 @@ fun PresetPickerWheel(
     onSelectPreset: (String, Boolean) -> Unit,
 ) {
     val colors = LocalEqColors.current
+    val context = LocalContext.current
+    val view = LocalView.current
     val haptic = LocalHapticFeedback.current
     val coroutineScope = rememberCoroutineScope()
     val density = LocalDensity.current.density
@@ -495,7 +504,7 @@ fun PresetPickerWheel(
         val centerPresetIndex = closest?.let { it.index - 1 } ?: lazyListState.firstVisibleItemIndex.coerceIn(0, allPresets.lastIndex)
         if (centerPresetIndex in allPresets.indices && centerPresetIndex != lastHapticIndex) {
             lastHapticIndex = centerPresetIndex
-            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+            AppHaptics.tick(view, context)
         }
     }
 
@@ -612,6 +621,7 @@ fun PresetPickerWheel(
                             this.cameraDistance = 18f * density
                         }
                         .clickable {
+                            AppHaptics.click(view, context)
                             coroutineScope.launch {
                                 lazyListState.animateScrollToItem(presetIndex)
                                 onSelectPreset(preset.name, true)

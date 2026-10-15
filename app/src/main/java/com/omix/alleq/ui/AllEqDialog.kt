@@ -33,8 +33,11 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.TextStyle
+import com.omix.alleq.ui.haptics.AppHaptics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
@@ -176,6 +179,8 @@ fun AllEqDialogButton(
     height: Dp = 42.dp,
 ) {
     val colors = LocalEqColors.current
+    val context = LocalContext.current
+    val view = LocalView.current
     val haptic = LocalHapticFeedback.current
 
     val containerColor = when (variant) {
@@ -212,7 +217,11 @@ fun AllEqDialogButton(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
             ) {
-                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                if (variant == AllEqButtonVariant.DESTRUCTIVE) {
+                    AppHaptics.heavyClick(view, context)
+                } else {
+                    AppHaptics.click(view, context)
+                }
                 onClick()
             }
             .padding(horizontal = 14.dp),

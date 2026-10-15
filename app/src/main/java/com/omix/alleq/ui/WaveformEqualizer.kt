@@ -29,11 +29,14 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.foundation.clickable
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.res.stringResource
 import com.omix.alleq.R
 import com.omix.alleq.model.EqualizerDefaults
+import com.omix.alleq.ui.haptics.AppHaptics
 import com.omix.alleq.ui.theme.LocalEqColors
 
 @Composable
@@ -46,6 +49,8 @@ fun WaveformEqualizerCard(
     onSavePreset: () -> Unit = {}
 ) {
     val colors = LocalEqColors.current
+    val context = LocalContext.current
+    val view = LocalView.current
     val haptic = LocalHapticFeedback.current
 
     Card(
@@ -95,7 +100,7 @@ fun WaveformEqualizerCard(
                                     .background(Color(0xFFFF9800).copy(alpha = 0.16f))
                                     .border(0.75.dp, Color(0xFFFF9800).copy(alpha = 0.45f), RoundedCornerShape(50))
                                     .clickable {
-                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                        AppHaptics.click(view, context)
                                         onSavePreset()
                                     }
                                     .padding(horizontal = 7.dp, vertical = 2.dp),
@@ -216,7 +221,7 @@ fun WaveformEqualizerCard(
                                 val newGain = calculateGain(y)
                                 val currentInt = kotlin.math.round(newGain).toInt()
                                 if (currentInt != lastIntGain) {
-                                    haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove)
+                                    AppHaptics.tick(view, context)
                                     lastIntGain = currentInt
                                 }
                                 localBandGains = localBandGains.toMutableList().also {
