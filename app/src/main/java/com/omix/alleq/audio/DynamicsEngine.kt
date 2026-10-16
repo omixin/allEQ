@@ -48,7 +48,7 @@ class DynamicsEngine(val audioSessionId: Int) {
             "Active (strength: $str%)"
         } ?: "Offline"
 
-        val dpeStatus = dpe?.let { "Active (Limiter 0 dBFS)" } ?: "Offline"
+        val dpeStatus = dpe?.let { "Active (Limiter $LIMITER_THRESHOLD_DB dBFS)" } ?: "Offline"
 
         return "HW Equalizer: $eqStatus\nLoudnessEnhancer: $leStatus\nBassBoost: $bbStatus\nDynamicsProcessing: $dpeStatus"
     }
@@ -67,7 +67,6 @@ class DynamicsEngine(val audioSessionId: Int) {
         bandGains: List<Float>,
         preAmpDb: Float,
         bassBoostPercent: Float,
-        limiterEnabled: Boolean,
         isEnabled: Boolean
     ): Boolean {
         release()
@@ -129,17 +128,7 @@ class DynamicsEngine(val audioSessionId: Int) {
             )
 
             for (channel in 0..1) {
-                val limiter = DynamicsProcessing.Limiter(
-                    true,
-                    true,
-                    0,
-                    1.5f,
-                    35.0f,
-                    15.0f,
-                    -1.5f,
-                    0.0f
-                )
-                builder.setLimiterByChannelIndex(channel, limiter)
+                builder.setLimiterByChannelIndex(channel, buildLimiter())
             }
 
             val config = builder.build()
@@ -295,34 +284,24 @@ class DynamicsEngine(val audioSessionId: Int) {
         }
     }
 
-    fun updatePreAmpAndLimiter(preAmpDb: Float, limiterEnabled: Boolean) {
+    fun updatePreAmp(preAmpDb: Float) {
         cachedPreAmpDb = preAmpDb
         if (!isInitialized) return
 
         updateGainCompensation()
-
-        if (!isEnabled) return
-
-        dpe?.let { effect ->
-            try {
-                for (channel in 0..1) {
-                    val limiter = DynamicsProcessing.Limiter(
-                        true,
-                        true,
-                        0,
-                        1.5f,
-                        35.0f,
-                        15.0f,
-                        -1.5f,
-                        0.0f
-                    )
-                    effect.setLimiterByChannelIndex(channel, limiter)
-                }
-            } catch (e: Exception) {
-                Log.e(tag, "Error updating limiter: ${e.message}")
-            }
-        }
     }
+
+    // limiter is a safety stage, always on while dsp is enabled
+    private fun buildLimiter() = DynamicsProcessing.Limiter(
+        true,
+        true,
+        0,
+        LIMITER_ATTACK_MS,
+        LIMITER_RELEASE_MS,
+        LIMITER_RATIO,
+        LIMITER_THRESHOLD_DB,
+        0.0f,
+    )
 
     private fun resetToFlat() {
         hwEq?.let { eq ->
@@ -376,5 +355,12 @@ class DynamicsEngine(val audioSessionId: Int) {
         hwBass = null
 
         isInitialized = false
+    }
+
+    companion object {
+        const val LIMITER_THRESHOLD_DB = -1.5f
+        private const val LIMITER_ATTACK_MS = 1.5f
+        private const val LIMITER_RELEASE_MS = 35.0f
+        private const val LIMITER_RATIO = 15.0f
     }
 }

@@ -646,7 +646,6 @@ class AudioProcessorService : Service() {
                 bandGains = _bandGains.value,
                 preAmpDb = _preAmpDb.value,
                 bassBoostPercent = _bassBoostPercent.value,
-                limiterEnabled = _limiterEnabled.value,
                 isEnabled = isSessionActive
             )
             if (success) {
@@ -801,7 +800,7 @@ class AudioProcessorService : Service() {
 
     fun setPreAmp(db: Float) {
         _preAmpDb.value = db
-        engines.values.forEach { it.updatePreAmpAndLimiter(db, _limiterEnabled.value) }
+        engines.values.forEach { it.updatePreAmp(db) }
         saveSettings(debounce = true)
     }
 
@@ -809,12 +808,6 @@ class AudioProcessorService : Service() {
         _bassBoostPercent.value = percent
         engines.values.forEach { it.updateBands(_bandGains.value, percent) }
         saveSettings(debounce = true)
-    }
-
-    fun setLimiterEnabled(enabled: Boolean) {
-        _limiterEnabled.value = enabled
-        engines.values.forEach { it.updatePreAmpAndLimiter(_preAmpDb.value, enabled) }
-        saveSettings()
     }
 
     fun applyPreset(presetName: String, isAutoSwitch: Boolean = false) {
@@ -827,7 +820,7 @@ class AudioProcessorService : Service() {
         _bassBoostPercent.value = preset.bassBoostPercent
         _limiterEnabled.value = preset.limiterEnabled
         updateBands(preset.bandGains)
-        engines.values.forEach { it.updatePreAmpAndLimiter(preset.preAmpDb, preset.limiterEnabled) }
+        engines.values.forEach { it.updatePreAmp(preset.preAmpDb) }
 
         if (!isAutoSwitch) {
             // remember preset for current active output device
@@ -1092,7 +1085,7 @@ class AudioProcessorService : Service() {
             appendLine("Active Preset: ${_activePresetName.value}")
             appendLine("Pre-Amp Gain: ${_preAmpDb.value} dB")
             appendLine("Bass Boost: ${_bassBoostPercent.value}%")
-            appendLine("Limiter Status: ${if (_limiterEnabled.value) "ENABLED (0 dBFS)" else "BYPASSED"}")
+            appendLine("Limiter Status: ${if (_isEnabled.value) "ALWAYS ON (${DynamicsEngine.LIMITER_THRESHOLD_DB} dBFS)" else "BYPASSED"}")
             appendLine("Band Gains (31Hz..16kHz): ${_bandGains.value.map { it.toInt() }}")
             appendLine("Smart Dynamic Bass: ${if (_dynamicBassEnabled.value) "ENABLED (Strength: ${(_dynamicBassStrength.value * 100).toInt()}%)" else "DISABLED"}")
             appendLine("Dynamic Bass Status: ${_dynamicBassModeStatus.value} (Vol: ${(_currentVolumeRatio.value * 100).toInt()}%)")
