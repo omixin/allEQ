@@ -6,6 +6,13 @@
     <string name="device_bluetooth">bluetooth аудио</string>
     <string name="device_wired">проводные наушники</string>
     <string name="device_usb">usb-c аудио</string>
+
+    <!-- Audio Routing -->
+    <string name="routing_title">АУДИОВЫХОДЫ</string>
+    <string name="routing_auto_switch">автосмена</string>
+    <string name="routing_active_output">АКТИВНЫЙ ВЫХОД</string>
+    <string name="routing_saved_outputs">СОХРАНЁННЫЕ ВЫХОДЫ</string>
+    <string name="routing_hint">пресеты переключаются автоматически при смене выхода</string>
     
     <!-- Top Bar & Main Controls -->
     <string name="btn_new_preset">новый</string>
