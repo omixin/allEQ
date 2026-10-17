@@ -162,6 +162,8 @@
     <string name="notif_disabled">Disabled</string>
     <string name="notif_action_enable">Enable</string>
     <string name="notif_action_disable">Disable</string>
+    <string name="notif_resume_title">allEQ paused after reboot</string>
+    <string name="notif_resume_text">Tap to resume the equalizer</string>
     <string name="oem_lock_hint">lock allEQ in recent apps (padlock icon) to prevent termination on swipe</string>
     
     <!-- Preset Export / Import -->

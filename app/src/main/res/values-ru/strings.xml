@@ -162,6 +162,8 @@
     <string name="notif_disabled">Выключен</string>
     <string name="notif_action_enable">Включить</string>
     <string name="notif_action_disable">Отключить</string>
+    <string name="notif_resume_title">allEQ на паузе после перезагрузки</string>
+    <string name="notif_resume_text">Нажми, чтобы снова включить эквалайзер</string>
     <string name="oem_lock_hint">закрепи allEQ в недавних (значок замка), чтобы система не закрывала процесс</string>
     
     <!-- Preset Export / Import -->

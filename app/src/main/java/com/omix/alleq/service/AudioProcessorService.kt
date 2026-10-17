@@ -10,6 +10,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.pm.ServiceInfo
 import android.media.AudioAttributes
 import android.media.AudioDeviceCallback
 import android.media.AudioDeviceInfo
@@ -20,6 +21,7 @@ import android.os.Build
 import android.os.IBinder
 import android.media.audiofx.AudioEffect
 import androidx.core.app.NotificationCompat
+import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
 import com.omix.alleq.MainActivity
 import com.omix.alleq.R
@@ -62,6 +64,7 @@ class AudioProcessorService : Service() {
     private var resurrectJob: Job? = null
     private var lastResurrectTime: Long = 0L
     private var saveSettingsJob: Job? = null
+    private var foregroundFailed = false
 
     companion object {
         const val CHANNEL_ID = "alleq_channel"
@@ -83,6 +86,22 @@ class AudioProcessorService : Service() {
         @Volatile
         var instance: AudioProcessorService? = null
             private set
+
+        // set by BootReceiver right before starting the service
+        @Volatile
+        var launchedFromBoot: Boolean = false
+
+        fun createNotificationChannel(context: Context) {
+            val channel = NotificationChannel(
+                CHANNEL_ID,
+                context.getString(R.string.notif_channel_name),
+                NotificationManager.IMPORTANCE_LOW
+            ).apply {
+                description = context.getString(R.string.notif_channel_desc)
+                setShowBadge(false)
+            }
+            context.getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
+        }
 
         private val _isEnabled = MutableStateFlow(true)
         val isEnabled: StateFlow<Boolean> = _isEnabled.asStateFlow()
@@ -152,8 +171,16 @@ class AudioProcessorService : Service() {
         instance = this
         audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
         loadSavedSettings()
-        createNotificationChannel()
-        startForeground(NOTIFICATION_ID, buildNotification())
+        createNotificationChannel(this)
+        val fromBoot = launchedFromBoot
+        launchedFromBoot = false
+        if (!promoteToForeground(fromBoot)) {
+            foregroundFailed = true
+            BootReceiver.postResumeNotification(this)
+            stopSelf()
+            return
+        }
+        getSystemService(NotificationManager::class.java).cancel(BootReceiver.RESUME_NOTIFICATION_ID)
         initAudioEngines()
         registerPlaybackCallback()
         registerAudioSessionReceiver()
@@ -167,6 +194,7 @@ class AudioProcessorService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (foregroundFailed) return START_NOT_STICKY
         when (intent?.action) {
             ACTION_TOGGLE -> {
                 toggleEnabled()
@@ -208,18 +236,21 @@ class AudioProcessorService : Service() {
 
     override fun onBind(intent: Intent?): IBinder = binder
 
-    private fun createNotificationChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                CHANNEL_ID,
-                getString(R.string.notif_channel_name),
-                NotificationManager.IMPORTANCE_LOW
-            ).apply {
-                description = getString(R.string.notif_channel_desc)
-                setShowBadge(false)
-            }
-            val manager = getSystemService(NotificationManager::class.java)
-            manager.createNotificationChannel(channel)
+    private fun promoteToForeground(fromBoot: Boolean): Boolean {
+        // android 15 blocks mediaPlayback fgs from BOOT_COMPLETED, specialUse is still allowed.
+        // the os keeps the boot origin for this start, so the type stays specialUse until restart
+        val type = if (fromBoot && Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
+            ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
+        } else {
+            ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
+        }
+        return try {
+            ServiceCompat.startForeground(this, NOTIFICATION_ID, buildNotification(), type)
+            AppLogger.log(tag, "Foreground started (boot=$fromBoot, type=$type)")
+            true
+        } catch (e: Exception) {
+            AppLogger.log(tag, "Foreground start refused (boot=$fromBoot): ${e.message}")
+            false
         }
     }
 
