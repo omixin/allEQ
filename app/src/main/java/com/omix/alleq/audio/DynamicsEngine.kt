@@ -253,46 +253,52 @@ class DynamicsEngine(val audioSessionId: Int) {
         updateGainCompensation()
     }
 
+    private var lastLeMilliBels = -1
+    private var lastInputGainDb = Float.NaN
+
     fun updateGainCompensation() {
         if (!isInitialized || !isEnabled) {
             try {
                 loudnessEnhancer?.setTargetGain(0)
             } catch (_: Exception) {}
+            lastLeMilliBels = -1
             return
         }
 
-        val speechLevellerFloor = 3.5f
-
-        val maxBandBoost = (cachedBandGains.mapIndexed { idx, g ->
-            val dyn = when (idx) {
-                0 -> dynamicOffset31
-                1 -> dynamicOffset62
-                2 -> dynamicOffset125
-                else -> 0f
-            }
-            g + dyn
-        }.maxOrNull() ?: 0f).coerceAtLeast(0f)
-
-        val totalBassBoost = (cachedBassBoostPercent + dynamicOffsetBassBoost).coerceIn(0f, 100f)
-        val bassBoostCompensation = (totalBassBoost / 100f) * 3.5f
+        // makeup follows user boosts only, smart dynamic bass is a bass-only loudness curve
+        // and must not lift the whole mix at low volume
+        val maxBandBoost = (cachedBandGains.maxOrNull() ?: 0f).coerceAtLeast(0f)
+        val bassBoostCompensation = (cachedBassBoostPercent.coerceIn(0f, 100f) / 100f) * 3.5f
 
         val maxBoostDb = maxOf(maxBandBoost, bassBoostCompensation)
 
-        val totalGainDb = if (makeupGainEnabled) {
-            (speechLevellerFloor + maxBoostDb + cachedPreAmpDb).coerceIn(0f, 12f)
-        } else {
-            cachedPreAmpDb.coerceIn(0f, 12f)
-        }
-        val targetMilliBels = (totalGainDb * 100).toInt().coerceIn(0, 1200)
+        // no fixed floor: flat bands with 0 db pre-amp leave the signal untouched
+        val totalGainDb = if (makeupGainEnabled) maxBoostDb + cachedPreAmpDb else cachedPreAmpDb
+
+        // loudness enhancer only boosts, attenuation goes to dpe input gain in front of the limiter
+        val boostDb = totalGainDb.coerceIn(0f, 12f)
+        val cutDb = totalGainDb.coerceIn(-12f, 0f)
+        val targetMilliBels = (boostDb * 100).toInt().coerceIn(0, 1200)
 
         loudnessEnhancer?.let { le ->
             try {
                 le.enabled = (targetMilliBels > 0)
                 le.setTargetGain(targetMilliBels)
-                AppLogger.log(tag, "LoudnessEnhancer: targetGain set to ${targetMilliBels} mB (+${totalGainDb} dB)")
             } catch (e: Exception) {
                 AppLogger.log(tag, "Error setting LoudnessEnhancer: ${e.message}")
             }
+        }
+        dpe?.let { dp ->
+            try {
+                dp.setInputGainAllChannelsTo(cutDb)
+            } catch (e: Exception) {
+                AppLogger.log(tag, "Error setting DynamicsProcessing input gain: ${e.message}")
+            }
+        }
+        if (targetMilliBels != lastLeMilliBels || cutDb != lastInputGainDb) {
+            lastLeMilliBels = targetMilliBels
+            lastInputGainDb = cutDb
+            AppLogger.log(tag, "Session $audioSessionId gain staging: LoudnessEnhancer $targetMilliBels mB, input gain $cutDb dB")
         }
     }
 
