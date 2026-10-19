@@ -52,6 +52,26 @@
             </intent-filter>
         </receiver>
 
+        <!-- android auto preset switcher, iot is the only phone category that fits a device control screen -->
+        <service
+            android:name=".car.AllEqCarAppService"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher"
+            android:label="@string/app_name">
+            <intent-filter>
+                <action android:name="androidx.car.app.CarAppService" />
+                <category android:name="androidx.car.app.category.IOT" />
+            </intent-filter>
+        </service>
+
+        <meta-data
+            android:name="androidx.car.app.minCarApiLevel"
+            android:value="1" />
+
+        <meta-data
+            android:name="com.google.android.gms.car.application"
+            android:resource="@xml/automotive_app_desc" />
+
         <service
             android:name=".service.AllEqTileService"
             android:icon="@drawable/ic_qs_alleq"
