@@ -53,6 +53,14 @@ class DynamicsEngine(val audioSessionId: Int) {
         return "HW Equalizer: $eqStatus\nLoudnessEnhancer: $leStatus\nBassBoost: $bbStatus\nDynamicsProcessing: $dpeStatus"
     }
 
+    // android auto: head unit has its own gain stage, makeup gain only overdrives the limiter
+    var makeupGainEnabled = true
+        set(value) {
+            if (field == value) return
+            field = value
+            updateGainCompensation()
+        }
+
     private var cachedBandGains: List<Float> = EqualizerDefaults.BANDS.map { 0f }
     private var cachedPreAmpDb: Float = 0f
 
@@ -270,7 +278,11 @@ class DynamicsEngine(val audioSessionId: Int) {
 
         val maxBoostDb = maxOf(maxBandBoost, bassBoostCompensation)
 
-        val totalGainDb = (speechLevellerFloor + maxBoostDb + cachedPreAmpDb).coerceIn(0f, 12f)
+        val totalGainDb = if (makeupGainEnabled) {
+            (speechLevellerFloor + maxBoostDb + cachedPreAmpDb).coerceIn(0f, 12f)
+        } else {
+            cachedPreAmpDb.coerceIn(0f, 12f)
+        }
         val targetMilliBels = (totalGainDb * 100).toInt().coerceIn(0, 1200)
 
         loudnessEnhancer?.let { le ->

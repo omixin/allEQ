@@ -20,7 +20,8 @@ enum class AudioDeviceType {
     SPEAKER,
     BLUETOOTH,
     WIRED,
-    USB
+    USB,
+    CAR,
 }
 
 data class DevicePresetBinding(

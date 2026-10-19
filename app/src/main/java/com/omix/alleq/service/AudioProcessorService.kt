@@ -22,7 +22,9 @@ import android.os.IBinder
 import android.media.audiofx.AudioEffect
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
+import androidx.car.app.connection.CarConnection
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.Observer
 import com.omix.alleq.MainActivity
 import com.omix.alleq.R
 import com.omix.alleq.audio.DynamicsEngine
@@ -66,6 +68,20 @@ class AudioProcessorService : Service() {
     private var saveSettingsJob: Job? = null
     private var foregroundFailed = false
 
+    // sessions announced by players via OPEN_AUDIO_EFFECT_CONTROL_SESSION, closed only by the matching broadcast
+    private val broadcastSessions: MutableSet<Int> = ConcurrentHashMap.newKeySet()
+    private var carConnection: CarConnection? = null
+    private var isProjecting = false
+    private val carConnectionObserver = Observer<Int> { type ->
+        val projecting = type == CarConnection.CONNECTION_TYPE_PROJECTION
+        if (projecting == isProjecting) return@Observer
+        isProjecting = projecting
+        AppLogger.log(tag, "Android Auto projection: ${if (projecting) "connected" else "disconnected"}")
+        engines.values.forEach { it.makeupGainEnabled = !projecting }
+        updateAudioDeviceDescription()
+        updateSessionArbitration()
+    }
+
     companion object {
         const val CHANNEL_ID = "alleq_channel"
         const val NOTIFICATION_ID = 2001
@@ -78,6 +94,7 @@ class AudioProcessorService : Service() {
         const val ACTION_APPLY_PRESET = "com.omix.alleq.ACTION_APPLY_PRESET"
         const val EXTRA_FORCE_ENABLE = "com.omix.alleq.EXTRA_FORCE_ENABLE"
         const val EXTRA_PRESET_NAME = "com.omix.alleq.EXTRA_PRESET_NAME"
+        private const val MAX_REMEMBERED_SESSIONS = 8
 
         @Volatile
         var isServiceRunning: Boolean = false
@@ -182,9 +199,11 @@ class AudioProcessorService : Service() {
         }
         getSystemService(NotificationManager::class.java).cancel(BootReceiver.RESUME_NOTIFICATION_ID)
         initAudioEngines()
+        restoreBroadcastSessions()
         registerPlaybackCallback()
         registerAudioSessionReceiver()
         registerDeviceCallback()
+        registerCarConnection()
         registerVolumeReceiver()
         registerModeListener()
         updateAudioDeviceDescription()
@@ -327,8 +346,13 @@ class AudioProcessorService : Service() {
             dev.type == AudioDeviceInfo.TYPE_USB_DEVICE
         } ?: devices.firstOrNull { it.type == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER }
 
-        isSpeakerOutput = activeDevice == null || activeDevice.type == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER
-        val (deviceKey, deviceName, deviceType) = detectActiveOutputDevice(activeDevice)
+        // android auto streams through remote submix, which is not listed as an output device
+        isSpeakerOutput = !isProjecting && (activeDevice == null || activeDevice.type == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER)
+        val (deviceKey, deviceName, deviceType) = if (isProjecting) {
+            Triple("android_auto", getString(R.string.device_android_auto), AudioDeviceType.CAR)
+        } else {
+            detectActiveOutputDevice(activeDevice)
+        }
         _activeDeviceKey.value = deviceKey
         _currentAudioDevice.value = deviceName
 
@@ -398,6 +422,14 @@ class AudioProcessorService : Service() {
             } catch (_: Exception) {
             }
             volumeReceiver = null
+        }
+    }
+
+    private fun registerCarConnection() {
+        try {
+            carConnection = CarConnection(this).also { it.type.observeForever(carConnectionObserver) }
+        } catch (e: Exception) {
+            AppLogger.log(tag, "CarConnection unavailable: ${e.message}")
         }
     }
 
@@ -540,12 +572,12 @@ class AudioProcessorService : Service() {
                 (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && audioManager.mode == AudioManager.MODE_CALL_SCREENING)
         val shouldBeActive = _isEnabled.value && !_isTemporaryBypass.value && !inCall
 
-        // prevent double eq: when specific sessions are active, mute session 0
-        engines[0]?.setEnabled(shouldBeActive && !hasSpecificSessions)
-
-        // all active specific sessions receive user's DSP settings
+        // app session effects follow the track to any output incl. android auto remote submix,
+        // global session 0 stays on the local output, so app sessions take over only while projecting
+        val useAppSessions = isProjecting && hasSpecificSessions
+        engines[0]?.setEnabled(shouldBeActive && !useAppSessions)
         specificSessions.forEach { sid ->
-            engines[sid]?.setEnabled(shouldBeActive)
+            engines[sid]?.setEnabled(shouldBeActive && useAppSessions)
         }
 
         val playing = isAudioPlayingOverride ?: (audioManager.isMusicActive || hasSpecificSessions)
@@ -594,8 +626,9 @@ class AudioProcessorService : Service() {
                     }
 
                     // detach closed media sessions (except global session 0)
+                    // configs are anonymized for regular apps, so keep broadcast-owned sessions
                     engines.keys.toList().forEach { sessionId ->
-                        if (sessionId != 0 && !activeSessionIds.contains(sessionId)) {
+                        if (sessionId != 0 && sessionId !in broadcastSessions && !activeSessionIds.contains(sessionId)) {
                             detachSession(sessionId)
                         }
                     }
@@ -623,12 +656,16 @@ class AudioProcessorService : Service() {
                 if (sessionId <= 0) return
                 when (intent.action) {
                     AudioEffect.ACTION_OPEN_AUDIO_EFFECT_CONTROL_SESSION -> {
+                        broadcastSessions.add(sessionId)
+                        persistBroadcastSessions()
                         if (!engines.containsKey(sessionId)) {
                             attachSession(sessionId)
                             updateSessionArbitration()
                         }
                     }
                     AudioEffect.ACTION_CLOSE_AUDIO_EFFECT_CONTROL_SESSION -> {
+                        broadcastSessions.remove(sessionId)
+                        persistBroadcastSessions()
                         detachSession(sessionId)
                         updateSessionArbitration()
                     }
@@ -640,6 +677,27 @@ class AudioProcessorService : Service() {
             addAction(AudioEffect.ACTION_CLOSE_AUDIO_EFFECT_CONTROL_SESSION)
         }
         ContextCompat.registerReceiver(this, audioSessionReceiver, filter, ContextCompat.RECEIVER_EXPORTED)
+    }
+
+    // players announce a session once, so remember it across service restarts (update, crash)
+    private fun persistBroadcastSessions() {
+        getSharedPreferences("alleq_audio_state", Context.MODE_PRIVATE).edit()
+            .putString("broadcast_sessions", broadcastSessions.toList().takeLast(MAX_REMEMBERED_SESSIONS).joinToString(","))
+            .apply()
+    }
+
+    private fun restoreBroadcastSessions() {
+        val saved = getSharedPreferences("alleq_audio_state", Context.MODE_PRIVATE)
+            .getString("broadcast_sessions", null)
+            ?.split(",")
+            ?.mapNotNull { it.trim().toIntOrNull() }
+            ?.filter { it > 0 }
+            .orEmpty()
+        if (saved.isEmpty()) return
+        broadcastSessions.addAll(saved)
+        saved.forEach { attachSession(it) }
+        updateSessionArbitration()
+        AppLogger.log(tag, "Restored player sessions: $saved")
     }
 
     private fun unregisterAudioSessionReceiver() {
@@ -655,6 +713,7 @@ class AudioProcessorService : Service() {
         if (engines.containsKey(sessionId)) return
         try {
             val engine = DynamicsEngine(sessionId)
+            engine.makeupGainEnabled = !isProjecting
             if (sessionId == 0) {
                 engine.onControlStatusChanged = { granted ->
                     AppLogger.log(tag, "Session 0 control status: $granted")
@@ -671,7 +730,8 @@ class AudioProcessorService : Service() {
             }
 
             val hasSpecificSessions = engines.keys.any { it != 0 } || (sessionId != 0)
-            val isSessionActive = _isEnabled.value && !_isTemporaryBypass.value && (if (sessionId == 0) !hasSpecificSessions else true)
+            val useAppSessions = isProjecting && hasSpecificSessions
+            val isSessionActive = _isEnabled.value && !_isTemporaryBypass.value && (if (sessionId == 0) !useAppSessions else useAppSessions)
 
             val success = engine.initialize(
                 bandGains = _bandGains.value,
@@ -1144,6 +1204,7 @@ class AudioProcessorService : Service() {
         if (instance == this) instance = null
         AllEqTileService.requestUpdate(this)
         unregisterModeListener()
+        try { carConnection?.type?.removeObserver(carConnectionObserver) } catch (_: Exception) {}
         unregisterAudioSessionReceiver()
         unregisterVolumeReceiver()
         try { deviceCallback?.let { audioManager.unregisterAudioDeviceCallback(it) } } catch (_: Exception) {}

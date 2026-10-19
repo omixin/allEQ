@@ -12,6 +12,7 @@ import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Bluetooth
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material.icons.filled.Headphones
 import androidx.compose.material.icons.filled.Usb
 import androidx.compose.material3.HorizontalDivider
@@ -408,6 +409,7 @@ private fun DeviceRowItem(
                 AudioDeviceType.BLUETOOTH -> Icons.Default.Bluetooth
                 AudioDeviceType.WIRED -> Icons.Default.Headphones
                 AudioDeviceType.USB -> Icons.Default.Usb
+                AudioDeviceType.CAR -> Icons.Default.DirectionsCar
             }
             Icon(
                 imageVector = icon,

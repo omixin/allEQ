@@ -6,6 +6,7 @@
     <string name="device_bluetooth">bluetooth audio</string>
     <string name="device_wired">wired headphones</string>
     <string name="device_usb">usb-c audio</string>
+    <string name="device_android_auto">Android Auto</string>
 
     <!-- Audio Routing & Auto-Switch -->
     <string name="routing_title">AUDIO ROUTING</string>
