@@ -53,20 +53,14 @@ fun SettingsSheet(
 ) {
     val colors = LocalEqColors.current
 
+    var statusBarCover by remember { mutableFloatStateOf(0f) }
+    val cornerRadius = 28.dp * (1f - statusBarCover)
+
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         containerColor = colors.sheetBg,
-        dragHandle = {
-            Box(
-                modifier = Modifier
-                    .padding(vertical = 12.dp)
-                    .width(36.dp)
-                    .height(4.dp)
-                    .clip(CircleShape)
-                    .background(if (colors.isDark) Color(0xFF333333) else Color(0xFFD4D8DE))
-            )
-        },
-        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+        dragHandle = { SheetDragHandle(onStatusBarCover = { statusBarCover = it }) },
+        shape = RoundedCornerShape(topStart = cornerRadius, topEnd = cornerRadius)
     ) {
         Column(
             modifier = Modifier

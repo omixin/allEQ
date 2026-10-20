@@ -1,12 +1,14 @@
 package com.omix.alleq.ui
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -16,12 +18,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -31,6 +30,8 @@ import com.omix.alleq.ui.haptics.AppHaptics
 import com.omix.alleq.ui.theme.BenzinFontFamily
 import com.omix.alleq.ui.theme.LocalEqColors
 import com.omix.alleq.ui.theme.WixFontFamily
+import sh.calvin.reorderable.ReorderableItem
+import sh.calvin.reorderable.rememberReorderableLazyListState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -50,29 +51,35 @@ fun PresetManagerSheet(
     val colors = LocalEqColors.current
     val context = LocalContext.current
     val view = LocalView.current
-    val haptic = LocalHapticFeedback.current
-    val density = LocalDensity.current
-    val itemHeightPx = with(density) { 56.dp.toPx() }
 
-    var draggedIndex by remember { mutableStateOf<Int?>(null) }
-    var dragAccumulator by remember { mutableFloatStateOf(0f) }
-    val currentPresets by rememberUpdatedState(allPresets)
-    val currentOnReorder by rememberUpdatedState(onReorder)
+    // local queue drives the drag, service gets the final order on drop only
+    var queue by remember { mutableStateOf(allPresets) }
+    var isDragging by remember { mutableStateOf(false) }
+    LaunchedEffect(allPresets) { if (!isDragging) queue = allPresets }
+
+    val listState = rememberLazyListState()
+    val reorderState = rememberReorderableLazyListState(listState) { from, to ->
+        val fromIndex = queue.indexOfFirst { it.name == from.key }
+        val toIndex = queue.indexOfFirst { it.name == to.key }
+        if (fromIndex >= 0 && toIndex >= 0) {
+            queue = queue.toMutableList().apply { add(toIndex, removeAt(fromIndex)) }
+            AppHaptics.tick(view, context)
+        }
+    }
+
+    fun commitQueue() {
+        isDragging = false
+        if (queue.map { it.name } != allPresets.map { it.name }) onReorder(queue)
+    }
+
+    var statusBarCover by remember { mutableFloatStateOf(0f) }
+    val cornerRadius = 28.dp * (1f - statusBarCover)
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         containerColor = colors.sheetBg,
-        dragHandle = {
-            Box(
-                modifier = Modifier
-                    .padding(vertical = 12.dp)
-                    .width(36.dp)
-                    .height(4.dp)
-                    .clip(CircleShape)
-                    .background(if (colors.isDark) Color(0xFF333333) else Color(0xFFD4D8DE))
-            )
-        },
-        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+        dragHandle = { SheetDragHandle(onStatusBarCover = { statusBarCover = it }) },
+        shape = RoundedCornerShape(topStart = cornerRadius, topEnd = cornerRadius)
     ) {
         Column(
             modifier = Modifier
@@ -108,6 +115,7 @@ fun PresetManagerSheet(
             Spacer(modifier = Modifier.height(14.dp))
 
             LazyColumn(
+                state = listState,
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f, fill = false),
@@ -136,7 +144,7 @@ fun PresetManagerSheet(
                                 .padding(horizontal = 8.dp, vertical = 2.dp)
                         ) {
                             Text(
-                                text = "${allPresets.size}",
+                                text = "${queue.size}",
                                 fontFamily = WixFontFamily,
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
@@ -146,25 +154,43 @@ fun PresetManagerSheet(
                     }
                 }
 
-                itemsIndexed(allPresets, key = { _, item -> item.name }) { index, preset ->
+                itemsIndexed(queue, key = { _, item -> item.name }) { index, preset ->
                     val isActive = activePresetName.equals(preset.name, ignoreCase = true)
-                    val isBeingDragged = (draggedIndex == index)
+
+                    ReorderableItem(reorderState, key = preset.name) { isBeingDragged ->
+                    val lift by animateFloatAsState(if (isBeingDragged) 1f else 0f, label = "lift")
+                    val elevation by animateDpAsState(if (isBeingDragged) 10.dp else 0.dp, label = "elevation")
+                    val borderColor by animateColorAsState(
+                        when {
+                            isBeingDragged -> colors.textPrimary.copy(alpha = 0.6f)
+                            isActive -> colors.accent
+                            else -> colors.borderSubtle
+                        },
+                        label = "border",
+                    )
 
                     Card(
                         shape = RoundedCornerShape(14.dp),
                         colors = CardDefaults.cardColors(
                             containerColor = if (isBeingDragged) colors.surfaceElevated else colors.sheetCardBg
                         ),
-                        border = BorderStroke(
-                            width = if (isBeingDragged) 1.5.dp else if (isActive) 1.2.dp else 1.dp,
-                            color = if (isBeingDragged) colors.textPrimary
-                            else if (isActive) colors.accent
-                            else colors.borderSubtle
-                        ),
-                        elevation = CardDefaults.cardElevation(if (isBeingDragged) 8.dp else 0.dp),
+                        border = BorderStroke(if (isActive && !isBeingDragged) 1.2.dp else 1.dp, borderColor),
+                        elevation = CardDefaults.cardElevation(elevation),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .scale(if (isBeingDragged) 1.02f else 1f)
+                            .graphicsLayer {
+                                val scale = 1f + 0.03f * lift
+                                scaleX = scale
+                                scaleY = scale
+                            }
+                            // long press anywhere on the card, like a player queue
+                            .longPressDraggableHandle(
+                                onDragStarted = {
+                                    isDragging = true
+                                    AppHaptics.heavyClick(view, context)
+                                },
+                                onDragStopped = { commitQueue() },
+                            )
                     ) {
                         Row(
                             modifier = Modifier
@@ -268,42 +294,13 @@ fun PresetManagerSheet(
                                 Box(
                                     modifier = Modifier
                                         .size(44.dp)
-                                        .pointerInput(Unit) {
-                                            detectVerticalDragGestures(
-                                                onDragStart = {
-                                                    draggedIndex = index
-                                                    dragAccumulator = 0f
-                                                    AppHaptics.heavyClick(view, context)
-                                                },
-                                                onDragEnd = {
-                                                    draggedIndex = null
-                                                    dragAccumulator = 0f
-                                                },
-                                                onDragCancel = {
-                                                    draggedIndex = null
-                                                    dragAccumulator = 0f
-                                                },
-                                                onVerticalDrag = { change, dragAmount ->
-                                                    change.consume()
-                                                    dragAccumulator += dragAmount
-                                                    val current = draggedIndex ?: return@detectVerticalDragGestures
-                                                    val steps = (dragAccumulator / itemHeightPx).toInt()
-                                                    if (steps != 0) {
-                                                        val list = currentPresets
-                                                        val target = (current + steps).coerceIn(0, list.size - 1)
-                                                        if (target != current) {
-                                                            val mutable = list.toMutableList()
-                                                            val item = mutable.removeAt(current)
-                                                            mutable.add(target, item)
-                                                            draggedIndex = target
-                                                            dragAccumulator -= steps * itemHeightPx
-                                                            AppHaptics.tick(view, context)
-                                                            currentOnReorder(mutable)
-                                                        }
-                                                    }
-                                                }
-                                            )
-                                        },
+                                        .draggableHandle(
+                                            onDragStarted = {
+                                                isDragging = true
+                                                AppHaptics.heavyClick(view, context)
+                                            },
+                                            onDragStopped = { commitQueue() },
+                                        ),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
@@ -315,6 +312,7 @@ fun PresetManagerSheet(
                                 }
                             }
                         }
+                    }
                     }
                 }
 

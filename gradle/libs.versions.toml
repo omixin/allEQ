@@ -10,6 +10,7 @@ kotlin = "2.2.10"
 composeBom = "2024.12.01"
 shizuku = "13.1.5"
 carApp = "1.4.0"
+reorderable = "2.4.3"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -30,6 +31,7 @@ androidx-compose-material-icons-extended = { group = "androidx.compose.material"
 shizuku-api = { group = "dev.rikka.shizuku", name = "api", version.ref = "shizuku" }
 shizuku-provider = { group = "dev.rikka.shizuku", name = "provider", version.ref = "shizuku" }
 androidx-car-app = { group = "androidx.car.app", name = "app", version.ref = "carApp" }
+reorderable = { group = "sh.calvin.reorderable", name = "reorderable", version.ref = "reorderable" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
