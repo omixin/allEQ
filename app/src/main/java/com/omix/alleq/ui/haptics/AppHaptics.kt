@@ -120,10 +120,8 @@ object AppHaptics {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                     val attrs = VibrationAttributes.createForUsage(VibrationAttributes.USAGE_TOUCH)
                     vib.vibrate(effect, attrs)
-                } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                    val attrs = VibrationAttributes.Builder().setUsage(VibrationAttributes.USAGE_TOUCH).build()
-                    vib.vibrate(effect, attrs)
                 } else {
+                    // vibrate(effect, VibrationAttributes) is api 33+, older releases take audio attributes
                     val attrs = AudioAttributes.Builder()
                         .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
                         .setUsage(AudioAttributes.USAGE_ASSISTANCE_SONIFICATION)
