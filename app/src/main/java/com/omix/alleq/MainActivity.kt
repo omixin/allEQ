@@ -301,6 +301,10 @@ class MainActivity : ComponentActivity() {
                         val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://t.me/allEQoff"))
                         startActivity(intent)
                     },
+                    onOpenSupport = {
+                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://app.lava.top/products/1cfd8c11-bf9c-4198-9fcb-7df7b97de1e9"))
+                        startActivity(intent)
+                    },
                     onDismissTutorial = {
                         prefs.edit().putBoolean("is_first_run", false).apply()
                     },
@@ -417,6 +421,7 @@ fun MainScreen(
     onCustomColorChanged: (Color) -> Unit,
     onOpenGitHubIssues: () -> Unit,
     onOpenTelegram: () -> Unit = {},
+    onOpenSupport: () -> Unit = {},
     onDismissTutorial: () -> Unit,
     onRequestShizuku: () -> Unit,
     onApplyWhitelist: () -> Unit,
@@ -576,7 +581,8 @@ fun MainScreen(
                 showTutorial = true
             },
             onOpenGitHubIssues = onOpenGitHubIssues,
-            onOpenTelegram = onOpenTelegram
+            onOpenTelegram = onOpenTelegram,
+            onOpenSupport = onOpenSupport,
         )
     }
 

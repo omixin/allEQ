@@ -13,6 +13,7 @@
 [![Android Auto](https://img.shields.io/badge/Android%20Auto-Поддерживается-4285F4.svg?style=flat-square)](#android-auto)
 ![Офлайн](https://img.shields.io/badge/Сеть-100%25%20Офлайн-brightgreen.svg?style=flat-square)
 [![Лицензия](https://img.shields.io/badge/Лицензия-GPL--3.0-orange.svg?style=flat-square)](LICENSE)
+[![Поддержать](https://img.shields.io/badge/Поддержать-lava.top-FF3E9A.svg?style=flat-square)](https://app.lava.top/products/1cfd8c11-bf9c-4198-9fcb-7df7b97de1e9)
 
 [**English**](README.md) • [**Русский**](README_RU.md) • [**Telegram-чат**](https://t.me/allEQoff)
 
@@ -149,6 +150,12 @@ cd allEQ
 
 Готовый подписанный APK появится в:
 `app/build/outputs/apk/release/app-release.apk`
+
+---
+
+## Поддержать проект
+
+allEQ бесплатный, без рекламы, и таким останется. Если он сделал звук лучше, можно оставить разовый донат на [**lava.top**](https://app.lava.top/products/1cfd8c11-bf9c-4198-9fcb-7df7b97de1e9). В приложении это ничего не открывает, просто помогает выпускать обновления.
 
 ---
 

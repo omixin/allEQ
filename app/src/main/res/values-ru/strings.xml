@@ -111,6 +111,10 @@
     <string name="settings_github_desc">проект с открытым исходным кодом. если вы столкнулись с ошибкой или хотите предложить фичу — создайте issue на github.</string>
     <string name="badge_github">github</string>
     <string name="btn_report_issue">сообщить об ошибке на github</string>
+
+    <string name="settings_support_desc">allEQ бесплатный и без рекламы. если он сделал звук лучше, можно оставить разовый донат. он ничего не открывает, просто помогает выпускать обновления.</string>
+    <string name="badge_support">донат</string>
+    <string name="btn_support">поддержать на lava.top</string>
     
     <string name="settings_diag_title">SYSTEM DIAGNOSTICS &amp; LOGS</string>
     <string name="settings_diag_desc">инженерный отчет о состоянии dsp, сессиях вывода звука и журнал событий для репорта багов.</string>

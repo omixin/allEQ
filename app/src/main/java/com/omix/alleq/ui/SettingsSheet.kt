@@ -49,7 +49,8 @@ fun SettingsSheet(
     onCopyDiagnostics: () -> Unit,
     onOpenTutorial: () -> Unit,
     onOpenGitHubIssues: () -> Unit = {},
-    onOpenTelegram: () -> Unit = {}
+    onOpenTelegram: () -> Unit = {},
+    onOpenSupport: () -> Unit = {},
 ) {
     val colors = LocalEqColors.current
 
@@ -478,6 +479,18 @@ fun SettingsSheet(
                 icon = Icons.Default.Code,
                 buttonText = androidx.compose.ui.res.stringResource(com.omix.alleq.R.string.btn_report_issue),
                 onButtonClick = onOpenGitHubIssues
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            SettingsActionCard(
+                title = "SUPPORT THE PROJECT",
+                subtitle = androidx.compose.ui.res.stringResource(com.omix.alleq.R.string.settings_support_desc),
+                statusBadgeText = androidx.compose.ui.res.stringResource(com.omix.alleq.R.string.badge_support),
+                statusBadgeColor = Color(0xFFFF3E9A),
+                icon = Icons.Default.Favorite,
+                buttonText = androidx.compose.ui.res.stringResource(com.omix.alleq.R.string.btn_support),
+                onButtonClick = onOpenSupport
             )
 
             Spacer(modifier = Modifier.height(12.dp))

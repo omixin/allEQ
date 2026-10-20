@@ -111,6 +111,10 @@
     <string name="settings_github_desc">open-source project. if you encounter a bug or have a feature request, create an issue on github.</string>
     <string name="badge_github">github</string>
     <string name="btn_report_issue">report an issue on github</string>
+
+    <string name="settings_support_desc">allEQ is free with no ads. if it made your music sound better, you can leave a one-time tip. it does not unlock anything, it just keeps updates coming.</string>
+    <string name="badge_support">tip</string>
+    <string name="btn_support">support on lava.top</string>
     
     <string name="settings_diag_title">SYSTEM DIAGNOSTICS &amp; LOGS</string>
     <string name="settings_diag_desc">engineering report on dsp state, audio output sessions and event logs for bug reports.</string>

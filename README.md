@@ -13,6 +13,7 @@
 [![Android Auto](https://img.shields.io/badge/Android%20Auto-Supported-4285F4.svg?style=flat-square)](#android-auto)
 ![Offline](https://img.shields.io/badge/Network-100%25%20Offline-brightgreen.svg?style=flat-square)
 [![License](https://img.shields.io/badge/License-GPL--3.0-orange.svg?style=flat-square)](LICENSE)
+[![Support](https://img.shields.io/badge/Support-lava.top-FF3E9A.svg?style=flat-square)](https://app.lava.top/products/1cfd8c11-bf9c-4198-9fcb-7df7b97de1e9)
 
 [**English**](README.md) • [**Русский**](README_RU.md) • [**Telegram Chat**](https://t.me/allEQoff)
 
@@ -158,6 +159,12 @@ cd allEQ
 
 The output signed APK will be located at:
 `app/build/outputs/apk/release/app-release.apk`
+
+---
+
+## Support
+
+allEQ is free, has no ads and never will. If it made your music sound better, you can leave a one-time tip on [**lava.top**](https://app.lava.top/products/1cfd8c11-bf9c-4198-9fcb-7df7b97de1e9). It does not unlock anything in the app, it just keeps updates coming.
 
 ---
 
