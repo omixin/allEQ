@@ -28,9 +28,7 @@
     
     <!-- Faders -->
     <string name="fader_off">выкл</string>
-    <string name="fader_disabled_hint">отключено • тап для вкл</string>
     <string name="fader_swipe_hint">свайп вверх / вниз</string>
-    <string name="fader_tap_to_adjust">нажмите для настройки</string>
     
     <!-- Dynamic Bass -->
     <string name="dynamic_bass_desc">адаптивный панч и защита динамика от хрипа</string>
@@ -122,7 +120,7 @@
     <string name="footer_subtitle">системный dsp-улучшайзер звука с открытым исходным кодом</string>
     
     <!-- Preset Manager Sheet -->
-    <string name="preset_manager_drag_hint">потяните за ☰ для перемещения пресетов в очереди</string>
+    <string name="preset_manager_drag_hint">потяните за ☰ или удерживайте карточку, чтобы поменять порядок</string>
     <string name="preset_manager_active_queue">ACTIVE QUEUE</string>
     <string name="preset_manager_deleted">DELETED PRESETS</string>
     <string name="btn_restore">вернуть</string>

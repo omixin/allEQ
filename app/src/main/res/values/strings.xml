@@ -28,9 +28,7 @@
     
     <!-- Faders -->
     <string name="fader_off">off</string>
-    <string name="fader_disabled_hint">disabled • tap to enable</string>
     <string name="fader_swipe_hint">swipe up / down</string>
-    <string name="fader_tap_to_adjust">tap to adjust</string>
     
     <!-- Dynamic Bass -->
     <string name="dynamic_bass_desc">adaptive punch &amp; high-volume cone protection</string>
@@ -122,7 +120,7 @@
     <string name="footer_subtitle">open-source rootless system-wide audio dsp engine</string>
     
     <!-- Preset Manager Sheet -->
-    <string name="preset_manager_drag_hint">drag ☰ to reorder presets in the queue</string>
+    <string name="preset_manager_drag_hint">drag ☰ or hold a card to reorder the queue</string>
     <string name="preset_manager_active_queue">ACTIVE QUEUE</string>
     <string name="preset_manager_deleted">DELETED PRESETS</string>
     <string name="btn_restore">restore</string>
