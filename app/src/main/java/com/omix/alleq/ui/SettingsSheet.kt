@@ -51,6 +51,8 @@ fun SettingsSheet(
     onOpenGitHubIssues: () -> Unit = {},
     onOpenTelegram: () -> Unit = {},
     onOpenSupport: () -> Unit = {},
+    hapticsEnabled: Boolean = true,
+    onHapticsToggle: (Boolean) -> Unit = {},
 ) {
     val colors = LocalEqColors.current
 
@@ -392,6 +394,18 @@ fun SettingsSheet(
                     }
                 }
             }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            SettingsActionCard(
+                title = "HAPTIC FEEDBACK",
+                subtitle = androidx.compose.ui.res.stringResource(com.omix.alleq.R.string.settings_haptics_desc),
+                statusBadgeText = androidx.compose.ui.res.stringResource(if (hapticsEnabled) com.omix.alleq.R.string.badge_on else com.omix.alleq.R.string.badge_off),
+                statusBadgeColor = if (hapticsEnabled) colors.accent else colors.textMuted,
+                icon = Icons.Default.Vibration,
+                buttonText = androidx.compose.ui.res.stringResource(if (hapticsEnabled) com.omix.alleq.R.string.btn_haptics_disable else com.omix.alleq.R.string.btn_haptics_enable),
+                onButtonClick = { onHapticsToggle(!hapticsEnabled) }
+            )
 
             Spacer(modifier = Modifier.height(12.dp))
 

@@ -115,6 +115,12 @@
     <string name="settings_support_desc">allEQ is free with no ads. if it made your music sound better, you can leave a one-time tip. it does not unlock anything, it just keeps updates coming.</string>
     <string name="badge_support">tip</string>
     <string name="btn_support">support on lava.top</string>
+
+    <string name="settings_haptics_desc">vibration on taps, faders and equalizer bands. also follows the system touch vibration setting.</string>
+    <string name="badge_on">on</string>
+    <string name="badge_off">off</string>
+    <string name="btn_haptics_enable">enable vibration</string>
+    <string name="btn_haptics_disable">disable vibration</string>
     
     <string name="settings_diag_title">SYSTEM DIAGNOSTICS &amp; LOGS</string>
     <string name="settings_diag_desc">engineering report on dsp state, audio output sessions and event logs for bug reports.</string>

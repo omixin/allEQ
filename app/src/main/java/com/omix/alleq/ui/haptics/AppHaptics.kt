@@ -8,6 +8,7 @@ import android.os.VibrationAttributes
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
+import android.provider.Settings
 import android.view.HapticFeedbackConstants
 import android.view.View
 
@@ -18,12 +19,31 @@ import android.view.View
 object AppHaptics {
 
     private var vibrator: Vibrator? = null
+    private var appContext: Context? = null
+
+    // in-app switch, persisted in alleq_prefs/haptics_enabled
+    @Volatile
+    var enabled: Boolean = true
+
+    const val PREF_KEY = "haptics_enabled"
     private var lastTickTimestamp: Long = 0L
     private const val MIN_TICK_INTERVAL_MS = 18L
 
     fun init(context: Context) {
+        appContext = context.applicationContext
         if (vibrator == null) {
             vibrator = getVibrator(context.applicationContext)
+        }
+        enabled = context.getSharedPreferences("alleq_prefs", Context.MODE_PRIVATE).getBoolean(PREF_KEY, true)
+    }
+
+    // system "touch vibration" toggle, off means the user does not want ui haptics anywhere
+    private fun systemTouchHapticsOn(context: Context?): Boolean {
+        val ctx = context ?: appContext ?: return true
+        return try {
+            Settings.System.getInt(ctx.contentResolver, Settings.System.HAPTIC_FEEDBACK_ENABLED, 1) != 0
+        } catch (_: Throwable) {
+            true
         }
     }
 
@@ -96,12 +116,14 @@ object AppHaptics {
         fallbackMillis: Long,
         fallbackAmplitude: Int,
     ) {
-        // try view feedback first with bypass flags
+        if (!enabled || !systemTouchHapticsOn(context ?: view?.context)) return
+
+        // view feedback first, the view-level flag is ignored so compose nodes still tick
         if (view != null) {
             try {
                 view.performHapticFeedback(
                     hapticConstant,
-                    HapticFeedbackConstants.FLAG_IGNORE_VIEW_SETTING or HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING,
+                    HapticFeedbackConstants.FLAG_IGNORE_VIEW_SETTING,
                 )
             } catch (_: Throwable) {}
         }

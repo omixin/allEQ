@@ -265,6 +265,7 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             var currentUiScale by remember { mutableStateOf(initialUiScale) }
+            var hapticsEnabled by remember { mutableStateOf(AppHaptics.enabled) }
             var currentAccentTheme by remember { mutableStateOf(initialAccentTheme) }
             var customAccentColor by remember { mutableStateOf(initialCustomColor) }
 
@@ -304,6 +305,14 @@ class MainActivity : ComponentActivity() {
                     onOpenSupport = {
                         val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://app.lava.top/products/1cfd8c11-bf9c-4198-9fcb-7df7b97de1e9"))
                         startActivity(intent)
+                    },
+                    hapticsEnabled = hapticsEnabled,
+                    onHapticsToggle = { enable ->
+                        hapticsEnabled = enable
+                        AppHaptics.enabled = enable
+                        prefs.edit().putBoolean(AppHaptics.PREF_KEY, enable).apply()
+                        // confirm the switch back on with a single click
+                        if (enable) AppHaptics.click(window.decorView, this@MainActivity)
                     },
                     onDismissTutorial = {
                         prefs.edit().putBoolean("is_first_run", false).apply()
@@ -422,6 +431,8 @@ fun MainScreen(
     onOpenGitHubIssues: () -> Unit,
     onOpenTelegram: () -> Unit = {},
     onOpenSupport: () -> Unit = {},
+    hapticsEnabled: Boolean = true,
+    onHapticsToggle: (Boolean) -> Unit = {},
     onDismissTutorial: () -> Unit,
     onRequestShizuku: () -> Unit,
     onApplyWhitelist: () -> Unit,
@@ -583,6 +594,8 @@ fun MainScreen(
             onOpenGitHubIssues = onOpenGitHubIssues,
             onOpenTelegram = onOpenTelegram,
             onOpenSupport = onOpenSupport,
+            hapticsEnabled = hapticsEnabled,
+            onHapticsToggle = onHapticsToggle,
         )
     }
 

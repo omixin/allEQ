@@ -115,6 +115,12 @@
     <string name="settings_support_desc">allEQ бесплатный и без рекламы. если он сделал звук лучше, можно оставить разовый донат. он ничего не открывает, просто помогает выпускать обновления.</string>
     <string name="badge_support">донат</string>
     <string name="btn_support">поддержать на lava.top</string>
+
+    <string name="settings_haptics_desc">вибрация при нажатиях, на фейдерах и полосах эквалайзера. также учитывает системную настройку вибрации при касании.</string>
+    <string name="badge_on">вкл</string>
+    <string name="badge_off">выкл</string>
+    <string name="btn_haptics_enable">включить вибрацию</string>
+    <string name="btn_haptics_disable">выключить вибрацию</string>
     
     <string name="settings_diag_title">SYSTEM DIAGNOSTICS &amp; LOGS</string>
     <string name="settings_diag_desc">инженерный отчет о состоянии dsp, сессиях вывода звука и журнал событий для репорта багов.</string>

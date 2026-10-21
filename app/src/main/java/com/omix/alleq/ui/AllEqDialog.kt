@@ -330,7 +330,7 @@ fun AllEqDialogTextField(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null,
                         ) {
-                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            if (com.omix.alleq.ui.haptics.AppHaptics.enabled) haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                             onValueChange("")
                         },
                     contentAlignment = Alignment.Center,
