@@ -20,8 +20,8 @@ android {
         applicationId = "com.omix.alleq"
         minSdk = 29
         targetSdk = 35
-        versionCode = 3
-        versionName = "1.2-alpha"
+        versionCode = 4
+        versionName = "1.2.1-alpha"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
