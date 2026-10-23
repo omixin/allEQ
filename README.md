@@ -125,6 +125,17 @@ Android Auto only lists apps installed from Google Play unless unknown sources a
 3. Open the overflow menu (three dots) > **Developer settings** and enable **Unknown sources**.
 4. Reconnect to the car. allEQ now appears in the Android Auto launcher.
 
+### allEQ does not show up in the car
+
+Newer Android Auto versions (17.8 and later) may still hide allEQ even with **Unknown sources** enabled, because the unknown sources switch does not cover car apps like allEQ's preset screen. The workaround is to install allEQ so that Android Auto sees Google Play as its installer. You already have Shizuku running, so this takes a minute:
+
+1. Install **KingInstaller** and grant it Shizuku access.
+2. In KingInstaller, select the **Shizuku** install mode and set the installer to **Google Play** (`com.android.vending`).
+3. Install the allEQ APK through KingInstaller (on top of the existing install, settings are kept).
+4. On the phone, open Android Auto settings > **Customize launcher** and enable allEQ, then reconnect to the car.
+
+Install every allEQ update the same way, otherwise Android Auto hides it again. Tested on a real car with Android Auto 18.
+
 EQ in the car works with players that announce their audio session to equalizers (Spotify, YouTube Music, Poweramp and most dedicated music players). If a player was started before allEQ, restart playback once so allEQ can pick up its session.
 
 ---
