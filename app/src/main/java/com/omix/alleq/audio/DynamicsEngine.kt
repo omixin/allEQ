@@ -7,7 +7,8 @@ import android.media.audiofx.LoudnessEnhancer
 import android.util.Log
 import com.omix.alleq.logger.AppLogger
 import com.omix.alleq.model.EqualizerDefaults
-import kotlin.math.abs
+import kotlin.math.ln
+import kotlin.math.sqrt
 
 class DynamicsEngine(val audioSessionId: Int) {
 
@@ -19,11 +20,15 @@ class DynamicsEngine(val audioSessionId: Int) {
 
     var onControlStatusChanged: ((Boolean) -> Unit)? = null
 
+    // true: curve runs on dpe pre-eq, hw eq is kept disabled as fallback
+    private var curveOnDpe = false
+
     fun isHealthy(): Boolean {
         return try {
-            if (!isInitialized || hwEq == null) return false
+            val curveEffect = if (curveOnDpe) dpe else hwEq
+            if (!isInitialized || curveEffect == null) return false
             // checking enabled verifies native binder without failing on non-exclusive control
-            val isEnabled = hwEq?.enabled ?: false
+            curveEffect.enabled
             true
         } catch (_: Exception) {
             false
@@ -48,9 +53,13 @@ class DynamicsEngine(val audioSessionId: Int) {
             "Active (strength: $str%)"
         } ?: "Offline"
 
-        val dpeStatus = dpe?.let { "Active (Limiter $LIMITER_THRESHOLD_DB dBFS)" } ?: "Offline"
+        val dpeStatus = dpe?.let {
+            val preEq = if (curveOnDpe) "Pre-EQ ${EqualizerDefaults.BANDS.size} bands, " else ""
+            "Active (${preEq}Limiter $LIMITER_THRESHOLD_DB dBFS)"
+        } ?: "Offline"
+        val curve = if (curveOnDpe) "DynamicsProcessing pre-EQ" else "HW Equalizer"
 
-        return "HW Equalizer: $eqStatus\nLoudnessEnhancer: $leStatus\nBassBoost: $bbStatus\nDynamicsProcessing: $dpeStatus"
+        return "Curve: $curve\nHW Equalizer: $eqStatus\nLoudnessEnhancer: $leStatus\nBassBoost: $bbStatus\nDynamicsProcessing: $dpeStatus"
     }
 
     // android auto: head unit has its own gain stage, makeup gain only overdrives the limiter
@@ -121,33 +130,25 @@ class DynamicsEngine(val audioSessionId: Int) {
             AppLogger.log(tag, "Session $audioSessionId: Error creating LoudnessEnhancer: ${e.message}")
         }
 
-        // brickwall limiter to protect against hardware clipping
+        // curve on dpe pre-eq (true 10 bands) + brickwall limiter, hw eq stays as fallback
         try {
-            val builder = DynamicsProcessing.Config.Builder(
-                DynamicsProcessing.VARIANT_FAVOR_FREQUENCY_RESOLUTION,
-                2,
-                false, // avoid double filtering with hweq
-                0,
-                false,
-                0,
-                false,
-                0,
-                true
-            )
-
-            for (channel in 0..1) {
-                builder.setLimiterByChannelIndex(channel, buildLimiter())
-            }
-
-            val config = builder.build()
-            dpe = DynamicsProcessing(1000, audioSessionId, config).apply {
-                enabled = isEnabled
-            }
-            AppLogger.log(tag, "Session $audioSessionId: DynamicsProcessing Limiter connected")
+            dpe = createDpe(withPreEq = true, isEnabled = isEnabled)
+            curveOnDpe = true
+            AppLogger.log(tag, "Session $audioSessionId: DynamicsProcessing pre-eq (${EqualizerDefaults.BANDS.size} bands) + limiter connected")
             anySuccess = true
         } catch (e: Exception) {
-            AppLogger.log(tag, "Session $audioSessionId: DynamicsProcessing unavailable: ${e.message}")
+            AppLogger.log(tag, "Session $audioSessionId: DynamicsProcessing pre-eq unavailable: ${e.message}")
+            try {
+                dpe = createDpe(withPreEq = false, isEnabled = isEnabled)
+                AppLogger.log(tag, "Session $audioSessionId: DynamicsProcessing Limiter connected, curve on HW Equalizer")
+                anySuccess = true
+            } catch (e2: Exception) {
+                AppLogger.log(tag, "Session $audioSessionId: DynamicsProcessing unavailable: ${e2.message}")
+            }
         }
+        try {
+            hwEq?.enabled = isEnabled && !curveOnDpe
+        } catch (_: Exception) {}
 
         isInitialized = anySuccess
         if (isInitialized) {
@@ -163,7 +164,7 @@ class DynamicsEngine(val audioSessionId: Int) {
         this.isEnabled = enabled
         try {
             dpe?.enabled = enabled
-            hwEq?.enabled = enabled
+            hwEq?.enabled = enabled && !curveOnDpe
             hwBass?.enabled = enabled && (cachedBassBoostPercent > 0f)
             loudnessEnhancer?.enabled = enabled
 
@@ -200,42 +201,25 @@ class DynamicsEngine(val audioSessionId: Int) {
         cachedBassBoostPercent = bassBoostPercent
         if (!isInitialized || !isEnabled) return
 
-        hwEq?.let { eq ->
-            try {
-                val numBands = eq.numberOfBands.toInt()
-                val minLevel = eq.bandLevelRange[0]
-                val maxLevel = eq.bandLevelRange[1]
+        val targets = buildCurve(bandGains, bassBoostPercent)
 
-                // vocal presence boost if low end is pushed
-                val totalBassActive = maxOf(
-                    cachedBandGains.take(3).maxOrNull() ?: 0f,
-                    (bassBoostPercent / 100f) * 6f
-                )
-                val vocalPreservation = if (totalBassActive > 1.5f) {
-                    (totalBassActive * 0.25f).coerceAtMost(2.0f)
-                } else {
-                    0f
-                }
-
-                for (b in 0 until numBands) {
-                    val centerFreqHz = eq.getCenterFreq(b.toShort()) / 1000
-                    val nearestBand = EqualizerDefaults.BANDS.minByOrNull {
-                        abs(it.frequencyHz - centerFreqHz)
+        if (curveOnDpe) {
+            applyPreEq(targets)
+        } else {
+            hwEq?.let { eq ->
+                try {
+                    val numBands = eq.numberOfBands.toInt()
+                    val minLevel = eq.bandLevelRange[0]
+                    val maxLevel = eq.bandLevelRange[1]
+                    // hw bands rarely match ours (nxp gives 5), sample the curve at each hw center
+                    for (b in 0 until numBands) {
+                        val centerFreqHz = eq.getCenterFreq(b.toShort()) / 1000f
+                        val targetMilliBels = (sampleCurve(targets, centerFreqHz) * 100).toInt().toShort().coerceIn(minLevel, maxLevel)
+                        eq.setBandLevel(b.toShort(), targetMilliBels)
                     }
-                    val gainDb = nearestBand?.let { bandGains.getOrElse(it.index) { 0f } } ?: 0f
-                    val dynGain = when (nearestBand?.index) {
-                        0 -> dynamicOffset31
-                        1 -> dynamicOffset62
-                        2 -> dynamicOffset125
-                        else -> 0f
-                    }
-                    val extraBass = if (hwBass == null && centerFreqHz in 100..250) (bassBoostPercent / 100f) * 4f else 0f
-                    val speechBoost = if (centerFreqHz in 800..3000) vocalPreservation else 0f
-                    val targetMilliBels = ((gainDb + dynGain + extraBass + speechBoost) * 100).toInt().toShort().coerceIn(minLevel, maxLevel)
-                    eq.setBandLevel(b.toShort(), targetMilliBels)
+                } catch (e: Exception) {
+                    Log.e(tag, "Error updating hardware EQ: ${e.message}")
                 }
-            } catch (e: Exception) {
-                Log.e(tag, "Error updating hardware EQ: ${e.message}")
             }
         }
 
@@ -309,6 +293,91 @@ class DynamicsEngine(val audioSessionId: Int) {
         updateGainCompensation()
     }
 
+    private fun createDpe(withPreEq: Boolean, isEnabled: Boolean): DynamicsProcessing {
+        val bandCount = if (withPreEq) EqualizerDefaults.BANDS.size else 0
+        val builder = DynamicsProcessing.Config.Builder(
+            DynamicsProcessing.VARIANT_FAVOR_FREQUENCY_RESOLUTION,
+            2,
+            withPreEq,
+            bandCount,
+            false,
+            0,
+            false,
+            0,
+            true
+        )
+        if (withPreEq) {
+            builder.setPreEqAllChannelsTo(buildPreEq(FloatArray(bandCount)))
+        }
+        for (channel in 0..1) {
+            builder.setLimiterByChannelIndex(channel, buildLimiter())
+        }
+        return DynamicsProcessing(1000, audioSessionId, builder.build()).apply {
+            enabled = isEnabled
+        }
+    }
+
+    // flat curve disables the stage so honest flat stays untouched
+    private fun buildPreEq(gains: FloatArray): DynamicsProcessing.Eq {
+        val eq = DynamicsProcessing.Eq(true, gains.any { it != 0f }, gains.size)
+        for (i in gains.indices) {
+            eq.setBand(i, DynamicsProcessing.EqBand(true, PRE_EQ_CUTOFFS[i], gains[i]))
+        }
+        return eq
+    }
+
+    private var lastPreEqGains: FloatArray? = null
+
+    private fun applyPreEq(gains: FloatArray) {
+        if (lastPreEqGains?.contentEquals(gains) == true) return
+        dpe?.let { dp ->
+            try {
+                dp.setPreEqAllChannelsTo(buildPreEq(gains))
+                lastPreEqGains = gains
+            } catch (e: Exception) {
+                Log.e(tag, "Error updating pre-eq: ${e.message}")
+            }
+        }
+    }
+
+    // final per-band gain in db: user curve + smart dynamic bass + vocal preservation
+    private fun buildCurve(bandGains: List<Float>, bassBoostPercent: Float): FloatArray {
+        // vocal presence boost if low end is pushed
+        val totalBassActive = maxOf(
+            bandGains.take(3).maxOrNull() ?: 0f,
+            (bassBoostPercent / 100f) * 6f
+        )
+        val vocalPreservation = if (totalBassActive > 1.5f) {
+            (totalBassActive * 0.25f).coerceAtMost(2.0f)
+        } else {
+            0f
+        }
+
+        return FloatArray(EqualizerDefaults.BANDS.size) { i ->
+            val freqHz = EqualizerDefaults.BANDS[i].frequencyHz
+            val dynGain = when (i) {
+                0 -> dynamicOffset31
+                1 -> dynamicOffset62
+                2 -> dynamicOffset125
+                else -> 0f
+            }
+            val extraBass = if (hwBass == null && freqHz in 100..250) (bassBoostPercent / 100f) * 4f else 0f
+            val speechBoost = if (freqHz in 800..3000) vocalPreservation else 0f
+            (bandGains.getOrElse(i) { 0f } + dynGain + extraBass + speechBoost).coerceIn(-MAX_BAND_DB, MAX_BAND_DB)
+        }
+    }
+
+    // log-frequency interpolation between our band centers
+    private fun sampleCurve(curve: FloatArray, freqHz: Float): Float {
+        val bands = EqualizerDefaults.BANDS
+        if (freqHz <= bands.first().frequencyHz) return curve.first()
+        if (freqHz >= bands.last().frequencyHz) return curve.last()
+        val upper = bands.indexOfFirst { it.frequencyHz >= freqHz }
+        val lower = upper - 1
+        val t = ln(freqHz / bands[lower].frequencyHz) / ln(bands[upper].frequencyHz.toFloat() / bands[lower].frequencyHz)
+        return curve[lower] + (curve[upper] - curve[lower]) * t
+    }
+
     // limiter is a safety stage, always on while dsp is enabled
     private fun buildLimiter() = DynamicsProcessing.Limiter(
         true,
@@ -362,6 +431,8 @@ class DynamicsEngine(val audioSessionId: Int) {
         try { dpe?.enabled = false } catch (_: Exception) {}
         try { dpe?.release() } catch (_: Exception) {}
         dpe = null
+        curveOnDpe = false
+        lastPreEqGains = null
 
         try { hwEq?.setControlStatusListener(null) } catch (_: Exception) {}
         try { hwEq?.enabled = false } catch (_: Exception) {}
@@ -380,5 +451,14 @@ class DynamicsEngine(val audioSessionId: Int) {
         private const val LIMITER_ATTACK_MS = 1.5f
         private const val LIMITER_RELEASE_MS = 35.0f
         private const val LIMITER_RATIO = 15.0f
+        private const val MAX_BAND_DB = 20f
+
+        // dpe bands are defined by their upper edge: geometric midpoint to the next center
+        private val PRE_EQ_CUTOFFS = EqualizerDefaults.BANDS.let { bands ->
+            FloatArray(bands.size) { i ->
+                if (i == bands.lastIndex) 20000f
+                else sqrt(bands[i].frequencyHz.toFloat() * bands[i + 1].frequencyHz)
+            }
+        }
     }
 }
