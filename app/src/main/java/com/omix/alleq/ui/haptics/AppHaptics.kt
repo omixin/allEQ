@@ -37,8 +37,11 @@ object AppHaptics {
         enabled = context.getSharedPreferences("alleq_prefs", Context.MODE_PRIVATE).getBoolean(PREF_KEY, true)
     }
 
-    // system "touch vibration" toggle, off means the user does not want ui haptics anywhere
+    // system "touch vibration" toggle, off means the user does not want ui haptics anywhere.
+    // api 33+: the flag is deprecated and stale on one ui (0 while touch haptics are on),
+    // usage TOUCH attributes already apply the user's touch intensity there
     private fun systemTouchHapticsOn(context: Context?): Boolean {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) return true
         val ctx = context ?: appContext ?: return true
         return try {
             Settings.System.getInt(ctx.contentResolver, Settings.System.HAPTIC_FEEDBACK_ENABLED, 1) != 0
