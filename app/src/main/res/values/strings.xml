@@ -33,8 +33,6 @@
     <!-- Dynamic Bass -->
     <string name="dynamic_bass_desc">adaptive punch &amp; high-volume cone protection</string>
     <string name="dynamic_bass_intensity">algorithm intensity</string>
-    <string name="dynamic_bass_off">off</string>
-    <string name="dynamic_bass_atmos_dsp">atmos dsp</string>
     <string name="dynamic_bass_status_master_off">master off</string>
     <string name="dynamic_bass_status_bypass">a/b bypass (original audio)</string>
     <string name="dynamic_bass_status_disabled">disabled</string>

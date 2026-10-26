@@ -33,8 +33,6 @@
     <!-- Dynamic Bass -->
     <string name="dynamic_bass_desc">адаптивный панч и защита динамика от хрипа</string>
     <string name="dynamic_bass_intensity">интенсивность алгоритма</string>
-    <string name="dynamic_bass_off">выкл</string>
-    <string name="dynamic_bass_atmos_dsp">atmos dsp</string>
     <string name="dynamic_bass_status_master_off">мастер выключен</string>
     <string name="dynamic_bass_status_bypass">a/b bypass (чистый звук)</string>
     <string name="dynamic_bass_status_disabled">отключено</string>

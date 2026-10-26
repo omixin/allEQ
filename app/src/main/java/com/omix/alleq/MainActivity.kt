@@ -1093,36 +1093,15 @@ fun MainScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(
-                                    text = "SMART DYNAMIC BASS",
-                                    fontFamily = BenzinFontFamily,
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    letterSpacing = 0.5.sp,
-                                    color = colors.textPrimary,
-                                    maxLines = 1,
-                                    modifier = Modifier.weight(1f, fill = false)
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Box(
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(4.dp))
-                                        .background(if (dynamicBassEnabled) colors.accent.copy(alpha = 0.18f) else colors.badgeBg)
-                                        .border(if (dynamicBassEnabled) 1.dp else 0.dp, if (dynamicBassEnabled) colors.accent.copy(alpha = 0.35f) else Color.Transparent, RoundedCornerShape(4.dp))
-                                        .padding(horizontal = 6.dp, vertical = 2.dp)
-                                ) {
-                                    Text(
-                                        text = if (dynamicBassEnabled) androidx.compose.ui.res.stringResource(com.omix.alleq.R.string.dynamic_bass_atmos_dsp) else androidx.compose.ui.res.stringResource(com.omix.alleq.R.string.dynamic_bass_off),
-                                        fontFamily = WixFontFamily,
-                                        fontSize = 9.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = if (dynamicBassEnabled) colors.accent else colors.textSecondary,
-                                        maxLines = 1,
-                                        softWrap = false
-                                    )
-                                }
-                            }
+                            Text(
+                                text = "SMART DYNAMIC BASS",
+                                fontFamily = BenzinFontFamily,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 0.5.sp,
+                                color = colors.textPrimary,
+                                maxLines = 1
+                            )
                             Spacer(modifier = Modifier.height(3.dp))
                             Text(
                                 text = androidx.compose.ui.res.stringResource(com.omix.alleq.R.string.dynamic_bass_desc),
