@@ -155,10 +155,12 @@ fun DeviceRoutingDropdown(
                                 transformOrigin = TransformOrigin(0.5f, 0f),
                                 animationSpec = tween(170),
                             ),
-                    modifier = Modifier.padding(top = 64.dp),
+                    modifier = Modifier.padding(top = 40.dp),
                 ) {
                     Column(
                         modifier = Modifier
+                            // room for the shadow, expand/shrink clip to the animated bounds
+                            .padding(24.dp)
                             .widthIn(min = 290.dp, max = 340.dp)
                             .shadow(24.dp, RoundedCornerShape(20.dp), spotColor = colors.accent.copy(alpha = 0.25f))
                             .clip(RoundedCornerShape(20.dp))

@@ -46,7 +46,14 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -799,10 +806,32 @@ fun MainScreen(
 
             Spacer(modifier = Modifier.height(18.dp))
 
+            val chipScroll = rememberScrollState()
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState()),
+                    // fade the edges that have more chips behind them instead of a hard cut
+                    .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+                    .drawWithContent {
+                        drawContent()
+                        val fade = 24.dp.toPx()
+                        if (chipScroll.canScrollBackward) {
+                            drawRect(
+                                brush = Brush.horizontalGradient(listOf(Color.Transparent, Color.Black), startX = 0f, endX = fade),
+                                size = Size(fade, size.height),
+                                blendMode = BlendMode.DstIn,
+                            )
+                        }
+                        if (chipScroll.canScrollForward) {
+                            drawRect(
+                                brush = Brush.horizontalGradient(listOf(Color.Black, Color.Transparent), startX = size.width - fade, endX = size.width),
+                                topLeft = Offset(size.width - fade, 0f),
+                                size = Size(fade, size.height),
+                                blendMode = BlendMode.DstIn,
+                            )
+                        }
+                    }
+                    .horizontalScroll(chipScroll),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Box(
@@ -1140,6 +1169,8 @@ fun MainScreen(
                                                 .size(8.dp)
                                                 .background(
                                                     when {
+                                                        // no live status while master is off or bypassed
+                                                        !isEnabled || isTemporaryBypass -> colors.textMuted
                                                         currentVolumeRatio >= 0.80f -> Color(0xFFFF9800)
                                                         currentVolumeRatio <= 0.45f -> Color(0xFF4CAF50)
                                                         else -> Color(0xFF2196F3)

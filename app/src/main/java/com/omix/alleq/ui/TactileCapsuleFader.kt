@@ -245,18 +245,39 @@ fun TactileCapsuleFader(
                     bottom = lerp(7.dp, 14.dp, expansion),
                 )
         ) {
-            Text(
-                text = title.uppercase(),
-                fontFamily = BenzinFontFamily,
-                fontWeight = FontWeight.Bold,
-                fontSize = 9.sp,
-                letterSpacing = 0.2.sp,
-                lineHeight = 12.sp,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(end = 38.dp * powerAlpha),
-                color = if (switchEnabled) colors.textPrimary else colors.textSecondary
-            )
+            Box(modifier = Modifier.padding(end = 38.dp * powerAlpha)) {
+                // same outline as the value, keeps the title readable where the level edge crosses it
+                if (switchEnabled) {
+                    Text(
+                        text = title.uppercase(),
+                        fontFamily = BenzinFontFamily,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 9.sp,
+                        letterSpacing = 0.2.sp,
+                        lineHeight = 12.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        style = androidx.compose.ui.text.TextStyle(
+                            color = if (colors.isDark) Color(0xFF0C0C0C) else Color(0xFFFFFFFF),
+                            drawStyle = androidx.compose.ui.graphics.drawscope.Stroke(
+                                width = with(density) { 1.5.dp.toPx() },
+                                join = androidx.compose.ui.graphics.StrokeJoin.Round
+                            )
+                        )
+                    )
+                }
+                Text(
+                    text = title.uppercase(),
+                    fontFamily = BenzinFontFamily,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 9.sp,
+                    letterSpacing = 0.2.sp,
+                    lineHeight = 12.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    color = if (switchEnabled) colors.textPrimary else colors.textSecondary
+                )
+            }
 
             Spacer(modifier = Modifier.weight(1f))
 
