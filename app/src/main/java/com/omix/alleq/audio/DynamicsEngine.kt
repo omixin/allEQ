@@ -162,6 +162,14 @@ class DynamicsEngine(val audioSessionId: Int) {
     }
 
     private var isEnabled = true
+    private var lastLoggedEnabled: Boolean? = null
+
+    // resend the curve even if unchanged, used after playback restarts
+    fun reapplyCurve() {
+        if (!isInitialized || !isEnabled) return
+        lastPreEqGains = null
+        updateBands(cachedBandGains, cachedBassBoostPercent)
+    }
 
     fun setEnabled(enabled: Boolean) {
         this.isEnabled = enabled
@@ -170,11 +178,16 @@ class DynamicsEngine(val audioSessionId: Int) {
             hwEq?.let { enableChecked(it, "Equalizer", enabled && !curveOnDpe) }
             hwBass?.let { enableChecked(it, "BassBoost", enabled && (cachedBassBoostPercent > 0f)) }
             loudnessEnhancer?.let { enableChecked(it, "LoudnessEnhancer", enabled) }
-            AppLogger.log(tag, "Session $audioSessionId master ${if (enabled) "on" else "off"}: ${effectsSummary()}")
+            if (enabled != lastLoggedEnabled) {
+                lastLoggedEnabled = enabled
+                AppLogger.log(tag, "Session $audioSessionId master ${if (enabled) "on" else "off"}: ${effectsSummary()}")
+            }
 
             if (!enabled) {
                 resetToFlat()
             } else {
+                // some roms (hios) drop dpe params while it is disabled or the track restarts, always resend
+                lastPreEqGains = null
                 updateBands(cachedBandGains, cachedBassBoostPercent)
                 updateGainCompensation()
             }

@@ -59,6 +59,7 @@ class AudioProcessorService : Service() {
     private lateinit var audioManager: AudioManager
     private val engines = ConcurrentHashMap<Int, DynamicsEngine>()
     private var lastLoggedPlaying: Boolean? = null
+    private var reapplyJob: Job? = null
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
     private var playbackCallback: AudioManager.AudioPlaybackCallback? = null
@@ -643,6 +644,14 @@ class AudioProcessorService : Service() {
                             "Playback ${if (isAudioPlaying) "started" else "stopped"}: tracks=${mediaConfigs.size} usages=$usages " +
                                 "musicActive=${audioManager.isMusicActive} mode=${audioManager.mode} session0=[${engines[0]?.effectsSummary() ?: "no engine"}]",
                         )
+                        if (isAudioPlaying) {
+                            // the new track's effect chain may settle after this callback
+                            reapplyJob?.cancel()
+                            reapplyJob = serviceScope.launch {
+                                delay(500)
+                                engines.values.forEach { it.reapplyCurve() }
+                            }
+                        }
                     }
                     updateSessionArbitration(isAudioPlaying)
 
