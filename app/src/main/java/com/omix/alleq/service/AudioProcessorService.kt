@@ -58,6 +58,7 @@ class AudioProcessorService : Service() {
 
     private lateinit var audioManager: AudioManager
     private val engines = ConcurrentHashMap<Int, DynamicsEngine>()
+    private var lastLoggedPlaying: Boolean? = null
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
     private var playbackCallback: AudioManager.AudioPlaybackCallback? = null
@@ -634,6 +635,15 @@ class AudioProcessorService : Service() {
                     }
 
                     val isAudioPlaying = audioManager.isMusicActive || mediaConfigs.isNotEmpty()
+                    if (isAudioPlaying != lastLoggedPlaying) {
+                        lastLoggedPlaying = isAudioPlaying
+                        val usages = mediaConfigs.map { it.audioAttributes?.usage ?: -1 }
+                        AppLogger.log(
+                            tag,
+                            "Playback ${if (isAudioPlaying) "started" else "stopped"}: tracks=${mediaConfigs.size} usages=$usages " +
+                                "musicActive=${audioManager.isMusicActive} mode=${audioManager.mode} session0=[${engines[0]?.effectsSummary() ?: "no engine"}]",
+                        )
+                    }
                     updateSessionArbitration(isAudioPlaying)
 
                     if (isAudioPlaying && audioManager.mode == AudioManager.MODE_NORMAL) {
@@ -1152,9 +1162,28 @@ class AudioProcessorService : Service() {
     }
 
     fun getDiagnosticsReport(): String {
-        val s0Engine = engines[0]
-        val hwStatus = s0Engine?.getEngineStatus() ?: "Session 0: Engine Offline"
-        val logs = AppLogger.getLogs().takeLast(40).joinToString("\n")
+        val engineStatus = engines.keys.sorted().joinToString("\n\n") { id ->
+            "Session $id:\n${engines[id]?.getEngineStatus() ?: "Engine Offline"}"
+        }.ifEmpty { "Session 0: Engine Offline" }
+        val logs = AppLogger.getLogs().joinToString("\n")
+        val availableEffects = try {
+            AudioEffect.queryEffects()?.joinToString("\n") { d ->
+                "- ${d.name} | ${d.implementor} | type=${d.type} | uuid=${d.uuid} | ${d.connectMode}"
+            } ?: "none reported"
+        } catch (e: Exception) {
+            "query failed: ${e.message}"
+        }
+        val outputs = try {
+            audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS).joinToString { "${it.type}:${it.productName}" }
+        } catch (e: Exception) {
+            "unavailable: ${e.message}"
+        }
+        val appVersion = try {
+            val info = packageManager.getPackageInfo(packageName, 0)
+            "${info.versionName} (${if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) info.longVersionCode else @Suppress("DEPRECATION") info.versionCode.toLong()})"
+        } catch (_: Exception) {
+            "unknown"
+        }
 
         return buildString {
             appendLine("=== allEQ SYSTEM DIAGNOSTIC REPORT ===")
@@ -1164,12 +1193,24 @@ class AudioProcessorService : Service() {
             appendLine("Model: ${Build.MODEL} (${Build.DEVICE})")
             appendLine("Build Display: ${Build.DISPLAY}")
             appendLine("Android OS: ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})")
+            appendLine("Brand: ${Build.BRAND}, Hardware: ${Build.HARDWARE}")
+            appendLine("Fingerprint: ${Build.FINGERPRINT}")
+            appendLine("allEQ: $appVersion")
             appendLine()
             appendLine("[AUDIO ROUTING & HARDWARE]")
             appendLine("Active Output: ${_currentAudioDevice.value}")
+            appendLine("System Outputs: $outputs")
+            appendLine("Audio Mode: ${audioManager.mode}, Music Active: ${audioManager.isMusicActive}, Android Auto: $isProjecting")
+            appendLine("Temporary Bypass: ${_isTemporaryBypass.value}")
             appendLine("Active Session Count: ${_activeSessionsCount.value}")
             appendLine("Registered Session IDs: ${engines.keys.toList()}")
-            appendLine(hwStatus)
+            appendLine("Broadcast Sessions: ${broadcastSessions.toList()}")
+            appendLine()
+            appendLine("[ENGINES]")
+            appendLine(engineStatus)
+            appendLine()
+            appendLine("[AVAILABLE AUDIO EFFECTS]")
+            appendLine(availableEffects)
             appendLine()
             appendLine("[DSP CONFIGURATION]")
             appendLine("Master Switch: ${if (_isEnabled.value) "ENABLED" else "DISABLED"}")
@@ -1181,7 +1222,7 @@ class AudioProcessorService : Service() {
             appendLine("Smart Dynamic Bass: ${if (_dynamicBassEnabled.value) "ENABLED (Strength: ${(_dynamicBassStrength.value * 100).toInt()}%)" else "DISABLED"}")
             appendLine("Dynamic Bass Status: ${_dynamicBassModeStatus.value} (Vol: ${(_currentVolumeRatio.value * 100).toInt()}%)")
             appendLine()
-            appendLine("[RECENT EVENT JOURNAL (LAST 40)]")
+            appendLine("[EVENT JOURNAL]")
             if (logs.isBlank()) {
                 appendLine("No events recorded.")
             } else {

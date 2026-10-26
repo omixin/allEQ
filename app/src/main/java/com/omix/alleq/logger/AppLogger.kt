@@ -7,7 +7,7 @@ import java.util.Locale
 import java.util.concurrent.ConcurrentLinkedDeque
 
 object AppLogger {
-    private const val MAX_LOGS = 60
+    private const val MAX_LOGS = 500
     private val buffer = ConcurrentLinkedDeque<String>()
     private val dateFormat = SimpleDateFormat("HH:mm:ss.SSS", Locale.US)
 

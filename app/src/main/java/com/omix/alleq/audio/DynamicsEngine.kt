@@ -1,12 +1,15 @@
 package com.omix.alleq.audio
 
+import android.media.audiofx.AudioEffect
 import android.media.audiofx.BassBoost
 import android.media.audiofx.DynamicsProcessing
 import android.media.audiofx.Equalizer
 import android.media.audiofx.LoudnessEnhancer
+import android.os.SystemClock
 import android.util.Log
 import com.omix.alleq.logger.AppLogger
 import com.omix.alleq.model.EqualizerDefaults
+import java.util.Locale
 import kotlin.math.ln
 import kotlin.math.sqrt
 
@@ -59,7 +62,7 @@ class DynamicsEngine(val audioSessionId: Int) {
         } ?: "Offline"
         val curve = if (curveOnDpe) "DynamicsProcessing pre-EQ" else "HW Equalizer"
 
-        return "Curve: $curve\nHW Equalizer: $eqStatus\nLoudnessEnhancer: $leStatus\nBassBoost: $bbStatus\nDynamicsProcessing: $dpeStatus"
+        return "Curve: $curve\nEffects: ${effectsSummary()}\n${preEqReadback()}HW Equalizer: $eqStatus\nLoudnessEnhancer: $leStatus\nBassBoost: $bbStatus\nDynamicsProcessing: $dpeStatus"
     }
 
     // android auto: head unit has its own gain stage, makeup gain only overdrives the limiter
@@ -94,12 +97,7 @@ class DynamicsEngine(val audioSessionId: Int) {
         try {
             hwEq = Equalizer(1000, audioSessionId).apply {
                 enabled = isEnabled
-                try {
-                    setControlStatusListener { _, controlGranted ->
-                        AppLogger.log(tag, "Session $audioSessionId control status: $controlGranted")
-                        onControlStatusChanged?.invoke(controlGranted)
-                    }
-                } catch (_: Exception) {}
+                watch(this, "Equalizer", forwardControl = true)
             }
             hwEqBandsCount = hwEq?.numberOfBands?.toInt() ?: 0
             AppLogger.log(tag, "Session $audioSessionId: Hardware Equalizer connected ($hwEqBandsCount bands)")
@@ -114,6 +112,7 @@ class DynamicsEngine(val audioSessionId: Int) {
                 if (strengthSupported) {
                     setStrength((bassBoostPercent * 10f).toInt().toShort().coerceIn(0, 1000))
                 }
+                watch(this, "BassBoost")
             }
             AppLogger.log(tag, "Session $audioSessionId: BassBoost initialized")
         } catch (e: Exception) {
@@ -123,6 +122,7 @@ class DynamicsEngine(val audioSessionId: Int) {
         try {
             loudnessEnhancer = LoudnessEnhancer(audioSessionId).apply {
                 enabled = isEnabled
+                watch(this, "LoudnessEnhancer")
             }
             AppLogger.log(tag, "Session $audioSessionId: LoudnessEnhancer connected")
             anySuccess = true
@@ -150,6 +150,9 @@ class DynamicsEngine(val audioSessionId: Int) {
             hwEq?.enabled = isEnabled && !curveOnDpe
         } catch (_: Exception) {}
 
+        dpe?.let { watch(it, "DynamicsProcessing") }
+        AppLogger.log(tag, "Session $audioSessionId effects: ${effectsSummary()}")
+
         isInitialized = anySuccess
         if (isInitialized) {
             updateBands(bandGains, bassBoostPercent)
@@ -163,10 +166,11 @@ class DynamicsEngine(val audioSessionId: Int) {
     fun setEnabled(enabled: Boolean) {
         this.isEnabled = enabled
         try {
-            dpe?.enabled = enabled
-            hwEq?.enabled = enabled && !curveOnDpe
-            hwBass?.enabled = enabled && (cachedBassBoostPercent > 0f)
-            loudnessEnhancer?.enabled = enabled
+            dpe?.let { enableChecked(it, "DynamicsProcessing", enabled) }
+            hwEq?.let { enableChecked(it, "Equalizer", enabled && !curveOnDpe) }
+            hwBass?.let { enableChecked(it, "BassBoost", enabled && (cachedBassBoostPercent > 0f)) }
+            loudnessEnhancer?.let { enableChecked(it, "LoudnessEnhancer", enabled) }
+            AppLogger.log(tag, "Session $audioSessionId master ${if (enabled) "on" else "off"}: ${effectsSummary()}")
 
             if (!enabled) {
                 resetToFlat()
@@ -327,6 +331,59 @@ class DynamicsEngine(val audioSessionId: Int) {
     }
 
     private var lastPreEqGains: FloatArray? = null
+    private var lastPreEqLogTime = 0L
+
+    private fun formatGains(gains: FloatArray) = gains.joinToString(" ", "[", "]") { String.format(Locale.US, "%.1f", it) }
+
+    // reads back what the native effect really holds, catches roms that drop parameters
+    private fun preEqReadback(): String {
+        if (!curveOnDpe) return ""
+        val dp = dpe ?: return ""
+        return try {
+            val eq = dp.getPreEqByChannelIndex(0)
+            val gains = FloatArray(eq.bandCount) { eq.getBand(it).gain }
+            "Pre-EQ readback (ch0): stage ${if (eq.isEnabled) "on" else "off"} ${formatGains(gains)}\n"
+        } catch (e: Exception) {
+            "Pre-EQ readback failed: ${e.message}\n"
+        }
+    }
+
+    private fun watch(effect: AudioEffect, name: String, forwardControl: Boolean = false) {
+        try {
+            effect.setControlStatusListener { _, granted ->
+                AppLogger.log(tag, "Session $audioSessionId $name control: ${if (granted) "granted" else "lost"}")
+                if (forwardControl) onControlStatusChanged?.invoke(granted)
+            }
+            effect.setEnableStatusListener { _, on ->
+                AppLogger.log(tag, "Session $audioSessionId $name enable status changed by another client: $on")
+            }
+        } catch (e: Exception) {
+            AppLogger.log(tag, "Session $audioSessionId $name listeners unavailable: ${e.message}")
+        }
+    }
+
+    private fun enableChecked(effect: AudioEffect, name: String, on: Boolean) {
+        val rc = try { effect.setEnabled(on) } catch (_: Exception) { AudioEffect.ERROR }
+        if (rc != AudioEffect.SUCCESS) {
+            AppLogger.log(tag, "Session $audioSessionId $name setEnabled($on) failed: rc=$rc")
+        }
+    }
+
+    private fun describe(effect: AudioEffect?, name: String): String? {
+        effect ?: return null
+        return try {
+            "$name(id=${effect.id}, ${if (effect.enabled) "on" else "off"}, ${if (effect.hasControl()) "control" else "NO CONTROL"})"
+        } catch (e: Exception) {
+            "$name(dead: ${e.message})"
+        }
+    }
+
+    fun effectsSummary(): String = listOfNotNull(
+        describe(hwEq, "Equalizer"),
+        describe(hwBass, "BassBoost"),
+        describe(loudnessEnhancer, "LoudnessEnhancer"),
+        describe(dpe, "DynamicsProcessing"),
+    ).joinToString(", ").ifEmpty { "none" }
 
     private fun applyPreEq(gains: FloatArray) {
         if (lastPreEqGains?.contentEquals(gains) == true) return
@@ -334,6 +391,12 @@ class DynamicsEngine(val audioSessionId: Int) {
             try {
                 dp.setPreEqAllChannelsTo(buildPreEq(gains))
                 lastPreEqGains = gains
+                // throttled, drags push dozens of updates per second
+                val now = SystemClock.uptimeMillis()
+                if (now - lastPreEqLogTime >= PRE_EQ_LOG_INTERVAL_MS) {
+                    lastPreEqLogTime = now
+                    AppLogger.log(tag, "Session $audioSessionId pre-eq set: ${formatGains(gains)}")
+                }
             } catch (e: Exception) {
                 Log.e(tag, "Error updating pre-eq: ${e.message}")
             }
@@ -452,6 +515,7 @@ class DynamicsEngine(val audioSessionId: Int) {
         private const val LIMITER_RELEASE_MS = 35.0f
         private const val LIMITER_RATIO = 15.0f
         private const val MAX_BAND_DB = 20f
+        private const val PRE_EQ_LOG_INTERVAL_MS = 1000L
 
         // dpe bands are defined by their upper edge: geometric midpoint to the next center
         private val PRE_EQ_CUTOFFS = EqualizerDefaults.BANDS.let { bands ->
