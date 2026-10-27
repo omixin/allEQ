@@ -965,9 +965,13 @@ fun MainScreen(
                             onPress = {
                                 AppHaptics.heavyClick(view, context)
                                 onSetTemporaryBypass(true)
-                                tryAwaitRelease()
-                                AppHaptics.click(view, context)
-                                onSetTemporaryBypass(false)
+                                // a cancelled press (activity recreated) must not leave the bypass on
+                                try {
+                                    tryAwaitRelease()
+                                    AppHaptics.click(view, context)
+                                } finally {
+                                    onSetTemporaryBypass(false)
+                                }
                             }
                         )
                     }
