@@ -457,7 +457,11 @@ class DynamicsEngine(val audioSessionId: Int) {
                 else -> 0f
             }
             val shelfPercent = (bassBoostPercent + dynamicOffsetBassBoost).coerceIn(0f, 100f)
-            val extraBass = if (hwBass == null) (shelfPercent / 100f) * BASS_SHELF_MAX_DB * shelfDepth else 0f
+            // the shelf only fills headroom up to the band limit, band +15 with bass 100% stays +15
+            // instead of +23 into the limiter
+            val userBass = bandGains.getOrElse(i) { 0f } + dynGain
+            val shelf = (shelfPercent / 100f) * BASS_SHELF_MAX_DB * shelfDepth
+            val extraBass = if (hwBass == null) shelf.coerceAtMost((BASS_SHELF_CEILING_DB - userBass).coerceAtLeast(0f)) else 0f
             val speechBoost = if (freqHz in 800..3000) vocalPreservation else 0f
             (bandGains.getOrElse(i) { 0f } + dynGain + extraBass + speechBoost).coerceIn(-MAX_BAND_DB, MAX_BAND_DB)
         }
@@ -545,6 +549,7 @@ class DynamicsEngine(val audioSessionId: Int) {
     companion object {
         const val LIMITER_THRESHOLD_DB = -1.5f
         private const val BASS_SHELF_MAX_DB = 8f
+        private const val BASS_SHELF_CEILING_DB = 15f
         private const val LIMITER_ATTACK_MS = 1.5f
         private const val LIMITER_RELEASE_MS = 35.0f
         private const val LIMITER_RATIO = 15.0f
