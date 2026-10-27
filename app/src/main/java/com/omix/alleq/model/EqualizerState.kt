@@ -33,6 +33,9 @@ data class DevicePresetBinding(
 )
 
 object EqualizerDefaults {
+    private const val MAX_PRESET_NAME_LENGTH = 40
+    private const val MAX_PRESET_DESCRIPTION_LENGTH = 200
+
     val BANDS = listOf(
         EqualizerBand(0, 31, "31 Hz"),
         EqualizerBand(1, 62, "62 Hz"),
@@ -268,20 +271,26 @@ object EqualizerDefaults {
 
     private fun parsePresetObject(obj: org.json.JSONObject): EqualizerPreset? {
         return try {
-            val name = obj.optString("name", "Imported Preset")
-            val desc = obj.optString("description", "Custom preset")
+            // imported files are untrusted: nan / infinity reach the dsp as silence, built-in names get shadowed
+            val rawName = obj.optString("name", "").trim().take(MAX_PRESET_NAME_LENGTH)
+            val baseName = rawName.ifBlank { "Imported Preset" }
+            val name = if (PRESETS.any { it.name.equals(baseName, ignoreCase = true) }) "$baseName (imported)" else baseName
+            val desc = obj.optString("description", "Custom preset").take(MAX_PRESET_DESCRIPTION_LENGTH)
             val gainsArray = obj.getJSONArray("bandGains")
             val gains = mutableListOf<Float>()
             for (g in 0 until gainsArray.length()) {
                 gains.add(gainsArray.getDouble(g).toFloat())
             }
             if (gains.size != 10) return null
+            val preAmp = obj.optDouble("preAmpDb", 0.0).toFloat()
+            val bassBoost = obj.optDouble("bassBoostPercent", 0.0).toFloat()
+            if (gains.any { !it.isFinite() } || !preAmp.isFinite() || !bassBoost.isFinite()) return null
             EqualizerPreset(
                 name = name,
                 description = desc,
-                bandGains = gains,
-                preAmpDb = obj.optDouble("preAmpDb", 0.0).toFloat(),
-                bassBoostPercent = obj.optDouble("bassBoostPercent", 0.0).toFloat(),
+                bandGains = gains.map { it.coerceIn(-15f, 15f) },
+                preAmpDb = preAmp.coerceIn(-12f, 12f),
+                bassBoostPercent = bassBoost.coerceIn(0f, 100f),
                 limiterEnabled = obj.optBoolean("limiterEnabled", false),
                 isCustom = true
             )
