@@ -23,6 +23,9 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.unit.sp
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animate
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -136,9 +139,26 @@ fun WaveformEqualizerCard(
             val currentOnBandGainChanged by rememberUpdatedState(onBandGainChanged)
 
             LaunchedEffect(bandGains) {
-                if (activeDraggingBand == -1) {
+                if (activeDraggingBand != -1) return@LaunchedEffect
+                val from = localBandGains
+                // own drags echo back unchanged, only external changes (preset switch, reset) morph
+                val external = from.size == bandGains.size &&
+                    from.indices.any { kotlin.math.abs(from[it] - bandGains[it]) > 0.05f }
+                if (!external) {
                     localBandGains = bandGains
+                    return@LaunchedEffect
                 }
+                animate(
+                    initialValue = 0f,
+                    targetValue = 1f,
+                    animationSpec = spring(dampingRatio = 0.75f, stiffness = Spring.StiffnessMediumLow)
+                ) { t, _ ->
+                    // a grab mid-morph takes over, the finger wins
+                    if (activeDraggingBand == -1) {
+                        localBandGains = bandGains.mapIndexed { i, to -> from[i] + (to - from[i]) * t }
+                    }
+                }
+                if (activeDraggingBand == -1) localBandGains = bandGains
             }
 
             Row(
