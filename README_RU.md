@@ -50,10 +50,10 @@ allEQ — системный эквалайзер для Android, котором
 
 <div align="center">
 
-| Системный эквалайзер | Пресет CLUB и Бас | Светлая тема | Настройки и Акценты |
+| Эквалайзер | Smart Dynamic Bass | Светлая тема | Настройки |
 |:---:|:---:|:---:|:---:|
-| <img src="art/screenshots/screen_main.png" width="220" /> | <img src="art/screenshots/screen_purple_preset.png" width="220" /> | <img src="art/screenshots/screen_light_preset.png" width="220" /> | <img src="art/screenshots/screen_settings.png" width="220" /> |
-| *10-полосный эквалайзер* | *Фиолетовый акцент с пресетом CLUB* | *Высококонтрастная светлая тема* | *Масштаб, темы и статус Shizuku* |
+| <img src="art/screenshots/screen_bass_punch.png" width="200" /> | <img src="art/screenshots/screen_club_dynamic_bass.png" width="200" /> | <img src="art/screenshots/screen_light_vocal.png" width="200" /> | <img src="art/screenshots/screen_settings.png" width="200" /> |
+| *10 полос, пресет Bass Punch* | *Пресет Club, бас по громкости* | *Vocal Clarity, тема как в системе* | *Пресеты, масштаб и акценты* |
 
 </div>
 

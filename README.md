@@ -50,10 +50,10 @@ Built with Kotlin and Jetpack Compose. Package: `com.omix.alleq`.
 
 <div align="center">
 
-| System Equalizer | Club Preset & Bass | Light Theme | Settings & Theming |
+| Equalizer | Smart Dynamic Bass | Light Theme | Settings |
 |:---:|:---:|:---:|:---:|
-| <img src="art/screenshots/screen_main.png" width="220" /> | <img src="art/screenshots/screen_purple_preset.png" width="220" /> | <img src="art/screenshots/screen_light_preset.png" width="220" /> | <img src="art/screenshots/screen_settings.png" width="220" /> |
-| *10-band precision faders* | *Purple accent with CLUB curve* | *Clean high-contrast daylight UI* | *Scale, colors & Shizuku status* |
+| <img src="art/screenshots/screen_bass_punch.png" width="200" /> | <img src="art/screenshots/screen_club_dynamic_bass.png" width="200" /> | <img src="art/screenshots/screen_light_vocal.png" width="200" /> | <img src="art/screenshots/screen_settings.png" width="200" /> |
+| *10-band curve, Bass Punch* | *Club preset, bass follows volume* | *Vocal Clarity, follows system theme* | *Presets, scale and accents* |
 
 </div>
 
