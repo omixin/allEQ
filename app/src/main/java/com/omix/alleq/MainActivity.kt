@@ -159,8 +159,10 @@ class MainActivity : ComponentActivity() {
     private fun handleIncomingPresetUri(uri: Uri?) {
         if (uri == null) return
         try {
+            // presets are a few kb, a shared video must not end up in memory
             val content = contentResolver.openInputStream(uri)?.use { stream ->
-                stream.bufferedReader().readText()
+                val bytes = stream.readNBytesCompat(MAX_IMPORT_BYTES + 1)
+                if (bytes.size > MAX_IMPORT_BYTES) null else String(bytes, Charsets.UTF_8)
             }
             val parsed = EqualizerDefaults.parseAlleqPayload(content)
             if (parsed.isNotEmpty()) {
@@ -420,6 +422,22 @@ class MainActivity : ComponentActivity() {
         service = null
         super.onDestroy()
     }
+
+    private companion object {
+        const val MAX_IMPORT_BYTES = 1024 * 1024
+    }
+}
+
+// InputStream.readNBytes is api 33+
+private fun java.io.InputStream.readNBytesCompat(limit: Int): ByteArray {
+    val out = java.io.ByteArrayOutputStream()
+    val buffer = ByteArray(8192)
+    while (out.size() < limit) {
+        val read = read(buffer, 0, minOf(buffer.size, limit - out.size()))
+        if (read < 0) break
+        out.write(buffer, 0, read)
+    }
+    return out.toByteArray()
 }
 
 @OptIn(ExperimentalFoundationApi::class)
