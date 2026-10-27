@@ -137,7 +137,7 @@ EQ in the car works with players that announce their audio session to equalizers
 
 ## Known Limitations
 
-* **Hardware band count:** allEQ drives the device's native equalizer. Many phones expose 5 hardware bands, in which case the 10-band curve is mapped to the nearest hardware bands.
+* **Phones without DynamicsProcessing:** since 1.3 the 10-band curve runs on Android's DynamicsProcessing, so all 10 bands work even where the hardware equalizer has only 5. If a phone's firmware doesn't provide it, allEQ falls back to the hardware equalizer and the curve is mapped to its bands (often 5).
 * **Exclusive DSP apps:** Other equalizers (Wavelet, Poweramp EQ, OEM sound effects) can take exclusive control of the output mix. Disable them when using allEQ.
 * **Android Auto players:** Apps that do not announce an audio session (some browsers and games) are not processed in the car.
 
