@@ -48,7 +48,8 @@ class DynamicsEngine(val audioSessionId: Int) {
 
         val leStatus = loudnessEnhancer?.let {
             val gain = try { it.targetGain / 100 } catch (_: Exception) { 0 }
-            "Active (targetGain: $gain dB)"
+            val on = try { if (it.enabled) "On" else "Off" } catch (_: Exception) { "Dead" }
+            "$on (targetGain: $gain dB)"
         } ?: "Offline"
 
         val bbStatus = hwBass?.let {
@@ -58,11 +59,13 @@ class DynamicsEngine(val audioSessionId: Int) {
 
         val dpeStatus = dpe?.let {
             val preEq = if (curveOnDpe) "Pre-EQ ${EqualizerDefaults.BANDS.size} bands, " else ""
-            "Active (${preEq}Limiter $LIMITER_THRESHOLD_DB dBFS)"
+            val inputGain = try { formatDb(it.getInputGainByChannelIndex(0)) } catch (_: Exception) { "?" }
+            "Active (${preEq}input gain $inputGain dB, Limiter $LIMITER_THRESHOLD_DB dBFS)"
         } ?: "Offline"
         val curve = if (curveOnDpe) "DynamicsProcessing pre-EQ" else "HW Equalizer"
+        val staging = "Gain staging: makeup ${if (makeupGainEnabled && !(curveOnDpe && dpe != null)) "on" else "off"}, set LE $lastLeMilliBels mB, set input gain ${formatDb(lastInputGainDb)} dB"
 
-        return "Curve: $curve\nEffects: ${effectsSummary()}\n${preEqReadback()}HW Equalizer: $eqStatus\nLoudnessEnhancer: $leStatus\nBassBoost: $bbStatus\nDynamicsProcessing: $dpeStatus"
+        return "Curve: $curve\nEffects: ${effectsSummary()}\n${preEqReadback()}$staging\nHW Equalizer: $eqStatus\nLoudnessEnhancer: $leStatus\nBassBoost: $bbStatus\nDynamicsProcessing: $dpeStatus"
     }
 
     // android auto: head unit has its own gain stage, makeup gain only overdrives the limiter
@@ -177,7 +180,7 @@ class DynamicsEngine(val audioSessionId: Int) {
             dpe?.let { enableChecked(it, "DynamicsProcessing", enabled) }
             hwEq?.let { enableChecked(it, "Equalizer", enabled && !curveOnDpe) }
             hwBass?.let { enableChecked(it, "BassBoost", enabled && (cachedBassBoostPercent > 0f)) }
-            loudnessEnhancer?.let { enableChecked(it, "LoudnessEnhancer", enabled) }
+            loudnessEnhancer?.let { enableChecked(it, "LoudnessEnhancer", enabled && !curveOnDpe) }
             if (enabled != lastLoggedEnabled) {
                 lastLoggedEnabled = enabled
                 AppLogger.log(tag, "Session $audioSessionId master ${if (enabled) "on" else "off"}: ${effectsSummary()}")
@@ -273,12 +276,15 @@ class DynamicsEngine(val audioSessionId: Int) {
 
         val maxBoostDb = maxOf(maxBandBoost, bassBoostCompensation)
 
-        // no fixed floor: flat bands with 0 db pre-amp leave the signal untouched
-        val totalGainDb = if (makeupGainEnabled) maxBoostDb + cachedPreAmpDb else cachedPreAmpDb
+        // with the curve on dpe there is no makeup: boosts stacked on top of it drove the limiter into
+        // audible pumping on bass, and hios gives uneven loudness after pause with le. pre-amp goes to
+        // dpe input gain, le stays off. otherwise le boosts, dpe only cuts
+        val gainOnDpe = curveOnDpe && dpe != null
 
-        // loudness enhancer only boosts, attenuation goes to dpe input gain in front of the limiter
-        val boostDb = totalGainDb.coerceIn(0f, 12f)
-        val cutDb = totalGainDb.coerceIn(-12f, 0f)
+        // no fixed floor: flat bands with 0 db pre-amp leave the signal untouched
+        val totalGainDb = if (makeupGainEnabled && !gainOnDpe) maxBoostDb + cachedPreAmpDb else cachedPreAmpDb
+        val boostDb = if (gainOnDpe) 0f else totalGainDb.coerceIn(0f, 12f)
+        val cutDb = if (gainOnDpe) totalGainDb.coerceIn(-12f, 12f) else totalGainDb.coerceIn(-12f, 0f)
         val targetMilliBels = (boostDb * 100).toInt().coerceIn(0, 1200)
 
         loudnessEnhancer?.let { le ->
@@ -346,7 +352,9 @@ class DynamicsEngine(val audioSessionId: Int) {
     private var lastPreEqGains: FloatArray? = null
     private var lastPreEqLogTime = 0L
 
-    private fun formatGains(gains: FloatArray) = gains.joinToString(" ", "[", "]") { String.format(Locale.US, "%.1f", it) }
+    private fun formatGains(gains: FloatArray) = gains.joinToString(" ", "[", "]") { formatDb(it) }
+
+    private fun formatDb(db: Float) = String.format(Locale.US, "%.1f", db)
 
     // reads back what the native effect really holds, catches roms that drop parameters
     private fun preEqReadback(): String {
