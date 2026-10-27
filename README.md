@@ -4,7 +4,7 @@
 
 # allEQ
 
-**Rootless 10-band system equalizer for Android with Smart Dynamic Bass and tactile mixing controls.**
+**System-wide 10-band equalizer for Android. No root, no ads, fully offline.**
 
 [![Release](https://img.shields.io/github/v/release/omixin/allEQ?include_prereleases&label=Release&color=10B981&style=flat-square)](https://github.com/omixin/allEQ/releases)
 [![Telegram](https://img.shields.io/badge/Telegram-Chat-229ED9.svg?style=flat-square&logo=telegram&logoColor=white)](https://t.me/allEQoff)
@@ -25,31 +25,24 @@
 
 ## What It Is
 
-**allEQ** is an open-source, rootless system-wide audio equalizer for Android built with modern Jetpack Compose and powered by [Shizuku](https://shizuku.rikka.app).
+allEQ is a system-wide equalizer for Android that works without root. One curve applies to everything you play: music apps, YouTube, games. It works on the phone speaker, wired and Bluetooth headphones, USB DACs, and follows your music into **Android Auto**.
 
-It attaches to the global output mix (`Session 0`) to provide low-latency, system-wide acoustic correction for built-in speakers, wired headphones, Bluetooth headsets and external USB DACs, and follows your music into **Android Auto**.
-
-* **Package name:** `com.omix.alleq`
-* **Maintainer:** [@omixin](https://github.com/omixin)
-* **Architecture:** 100% Kotlin, Jetpack Compose, Material 3, Android DynamicsProcessing & AudioEffects API
+[Shizuku](https://shizuku.rikka.app) is used for one thing: keeping allEQ alive on phones that kill background apps.
 
 ---
 
-## Why This Exists
+## Why I Made It
 
-Most existing equalizer applications on Android face one of three fundamental problems:
+I wanted a proper EQ on my phone without root, ads or subscriptions, and couldn't find one. ViPER4Android needs root, which breaks banking apps. Most rootless EQs get killed by the battery saver after a few minutes, or just push the bass until the phone's amp protection squashes the volume and voices turn to mud.
 
-1. **Root requirement:** Advanced DSP tools (such as ViPER4Android) require Magisk/KernelSU root, tripping SafetyNet/Play Integrity and making banking apps inaccessible.
-2. **Aggressive background killing:** Non-root equalizers often rely on `NotificationListenerService` or accessibility hacks. Aggressive OEM task killers (MIUI, HyperOS, OneUI, OriginOS) terminate them within minutes of audio playback.
-3. **Muffled vocals during bass boost:** Traditional equalizers simply boost lower frequencies, causing the phone's hardware amplifier protection to squash master volume and muffling speech and dialogue in videos.
-4. **Bloat and trackers:** Commercial equalizers frequently package invasive analytics, full-screen advertisements, and subscription paywalls.
+So allEQ:
 
-**allEQ was built to solve these problems directly:**
+* hooks the global output mix (`Session 0`) with Android's own `AudioEffect`s, no root needed;
+* asks Shizuku to whitelist it from OEM battery killers (MIUI, HyperOS, One UI, OriginOS), so it doesn't silently stop;
+* keeps voices clear when you boost the bass: a small lift on 800–3000 Hz and a -1.5 dBFS limiter;
+* has no internet permission at all. No ads, analytics or trackers.
 
-* **Rootless Session 0 Hook:** Attaches native `AudioEffect`s to the global output mix (`AUDIO_SESSION_OUTPUT_MIX`), applying EQ across all applications without root. Shizuku is used to whitelist the service from OEM battery killers, so processing never silently stops.
-* **Smart Dynamic Bass & Vocal Protection:** An always-on brickwall limiter (-1.5 dBFS) and dynamic mid-frequency compensation (up to +2 dB on 800–3000 Hz) keep speech in podcasts, TikTok and YouTube intelligible when sub-bass is boosted.
-* **100% Offline & Private:** The app has zero network permissions (`android.permission.INTERNET` is not declared). Zero analytics, zero telemetry, zero trackers.
-* **Zero Passive Battery Drain:** Operates via native Audio HAL effects without maintaining continuous CPU wake-locks or audio re-encoding pipelines.
+Built with Kotlin and Jetpack Compose. Package: `com.omix.alleq`.
 
 ---
 
