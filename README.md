@@ -129,6 +129,8 @@ Newer Android Auto versions (17.8 and later) may still hide allEQ even with **Un
 
 Install every allEQ update the same way, otherwise Android Auto hides it again. Tested on a real car with Android Auto 18.
 
+Another option is [AAEnabler](https://github.com/malebuffy/AAEnabler): pick the allEQ APK in it and install, then enable allEQ in the launcher settings as above. Suggested by a user, I haven't tested it myself.
+
 EQ in the car works with players that announce their audio session to equalizers (Spotify, YouTube Music, Poweramp and most dedicated music players). If a player was started before allEQ, restart playback once so allEQ can pick up its session.
 
 ---
