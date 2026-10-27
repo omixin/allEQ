@@ -110,19 +110,6 @@ class DynamicsEngine(val audioSessionId: Int) {
         }
 
         try {
-            hwBass = BassBoost(1000, audioSessionId).apply {
-                enabled = isEnabled && bassBoostPercent > 0f
-                if (strengthSupported) {
-                    setStrength((bassBoostPercent * 10f).toInt().toShort().coerceIn(0, 1000))
-                }
-                watch(this, "BassBoost")
-            }
-            AppLogger.log(tag, "Session $audioSessionId: BassBoost initialized")
-        } catch (e: Exception) {
-            AppLogger.log(tag, "Session $audioSessionId: Error initializing BassBoost: ${e.message}")
-        }
-
-        try {
             loudnessEnhancer = LoudnessEnhancer(audioSessionId).apply {
                 enabled = isEnabled
                 watch(this, "LoudnessEnhancer")
@@ -152,6 +139,23 @@ class DynamicsEngine(val audioSessionId: Int) {
         try {
             hwEq?.enabled = isEnabled && !curveOnDpe
         } catch (_: Exception) {}
+
+        // bass boost is a low shelf in the dpe curve. the nxp bundle bass boost lowers the whole
+        // mix by its energy estimate (LvmEffect_limitLevel, -6 db at 35%) and lifts only ~90 hz
+        if (!curveOnDpe) {
+            try {
+                hwBass = BassBoost(1000, audioSessionId).apply {
+                    enabled = isEnabled && bassBoostPercent > 0f
+                    if (strengthSupported) {
+                        setStrength((bassBoostPercent * 10f).toInt().toShort().coerceIn(0, 1000))
+                    }
+                    watch(this, "BassBoost")
+                }
+                AppLogger.log(tag, "Session $audioSessionId: BassBoost initialized")
+            } catch (e: Exception) {
+                AppLogger.log(tag, "Session $audioSessionId: Error initializing BassBoost: ${e.message}")
+            }
+        }
 
         dpe?.let { watch(it, "DynamicsProcessing") }
         AppLogger.log(tag, "Session $audioSessionId effects: ${effectsSummary()}")
@@ -445,7 +449,15 @@ class DynamicsEngine(val audioSessionId: Int) {
                 2 -> dynamicOffset125
                 else -> 0f
             }
-            val extraBass = if (hwBass == null && freqHz in 100..250) (bassBoostPercent / 100f) * 4f else 0f
+            // no hw bass boost: low shelf, full depth up to 62 hz, fading out by 250 hz
+            val shelfDepth = when {
+                freqHz <= 62 -> 1f
+                freqHz <= 125 -> 0.6f
+                freqHz <= 250 -> 0.2f
+                else -> 0f
+            }
+            val shelfPercent = (bassBoostPercent + dynamicOffsetBassBoost).coerceIn(0f, 100f)
+            val extraBass = if (hwBass == null) (shelfPercent / 100f) * BASS_SHELF_MAX_DB * shelfDepth else 0f
             val speechBoost = if (freqHz in 800..3000) vocalPreservation else 0f
             (bandGains.getOrElse(i) { 0f } + dynGain + extraBass + speechBoost).coerceIn(-MAX_BAND_DB, MAX_BAND_DB)
         }
@@ -532,6 +544,7 @@ class DynamicsEngine(val audioSessionId: Int) {
 
     companion object {
         const val LIMITER_THRESHOLD_DB = -1.5f
+        private const val BASS_SHELF_MAX_DB = 8f
         private const val LIMITER_ATTACK_MS = 1.5f
         private const val LIMITER_RELEASE_MS = 35.0f
         private const val LIMITER_RATIO = 15.0f
